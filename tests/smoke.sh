@@ -12,7 +12,7 @@ HOME="$T" bash "$REPO/scripts/install.sh" --dry-run >/dev/null
 HOME="$T" bash "$REPO/scripts/install.sh" >/dev/null
 HOME="$T" bash "$REPO/scripts/install.sh" >/dev/null
 HOME="$T" PATH="$SYSTEM_PATH" bash "$REPO/scripts/verify.sh"
-[[ $(grep -Fc '# >>> dev-agent-config managed >>>' "$T/AGENTS.md") -eq 1 ]]
+[[ $(grep -Fc '# >>> contextrivet managed >>>' "$T/AGENTS.md") -eq 1 ]]
 grep -Fq 'Keep this custom rule.' "$T/AGENTS.md"
 grep -Fq 'Keep existing Codex rule.' "$T/.codex/AGENTS.md"
 echo 'PASS smoke: dry run, preservation, idempotence, verification'

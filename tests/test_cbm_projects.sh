@@ -141,7 +141,7 @@ if run_cbm status --project "$SANDBOX" >/dev/null 2>&1; then echo 'Unindexed pro
 
 # Only the index created by this manager gets a cleanup mapping. Dry-run does
 # not mutate CBM state and clean never touches repository sources.
-one_meta="$(find "$home/state/dev-agent-config/tools/codebase-memory-mcp/projects" -type f -name '*.tsv' | head -n1)"
+one_meta="$(find "$home/state/contextrivet/tools/codebase-memory-mcp/projects" -type f -name '*.tsv' | head -n1)"
 [ -f "$one_meta" ]
 before="$(cksum "$CBM_FAKE_PROJECTS" "$one_meta")"
 result="$(run_cbm clean --project "$projects/retail api" --dry-run)"
@@ -163,7 +163,7 @@ if run_cbm clean --project "$projects/external api" >/dev/null 2>&1; then echo '
 stale_meta=''
 while IFS= read -r candidate; do
   if grep -Fqx "project_path$(printf '\t')$(cd -P "$projects/retail api" && pwd)" "$candidate"; then stale_meta="$candidate"; break; fi
-done < <(find "$home/state/dev-agent-config/tools/codebase-memory-mcp/projects" -type f -name '*.tsv')
+done < <(find "$home/state/contextrivet/tools/codebase-memory-mcp/projects" -type f -name '*.tsv')
 [ -n "$stale_meta" ]
 python3 - "$CBM_FAKE_PROJECTS" "$projects/retail api" <<'PY'
 import json,os,sys

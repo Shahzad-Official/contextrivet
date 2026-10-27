@@ -13,14 +13,15 @@ for arg in "$@"; do
   esac
 done
 if [ -z "$BACKUP" ]; then
-  state="$HOME/.agents/dev-agent-config/last-backup"
+  state="$HOME/.agents/contextrivet/last-backup"
+  if [ ! -e "$state" ] && [ ! -L "$state" ]; then state="$HOME/.agents/dev-agent-config/last-backup"; fi
   [ -f "$state" ] && [ ! -L "$state" ] || fail 'No safe last-backup record found'
   BACKUP="$(sed -n '1p' "$state")"
 fi
-case "$BACKUP" in "$HOME/.agents/dev-agent-config/backups/"*) ;; *) fail "Invalid backup path: $BACKUP" ;; esac
+case "$BACKUP" in "$HOME/.agents/contextrivet/backups/"*|"$HOME/.agents/dev-agent-config/backups/"*) ;; *) fail "Invalid backup path: $BACKUP" ;; esac
 [ -f "$BACKUP/manifest.tsv" ] || fail "Missing backup manifest: $BACKUP"
 
-SAFETY="$HOME/.agents/dev-agent-config/backups/rollback-$(date +%Y%m%d-%H%M%S)-$$"
+SAFETY="$HOME/.agents/contextrivet/backups/rollback-$(date +%Y%m%d-%H%M%S)-$$"
 
 tail -n +2 "$BACKUP/manifest.tsv" | while IFS="$(printf '\t')" read -r type target saved; do
   validate_target "$target"

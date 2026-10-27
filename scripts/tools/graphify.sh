@@ -37,10 +37,17 @@ state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
 case "$data_home:$state_home" in /*:/*) ;; *) fail 'HOME/XDG data and state paths must be absolute' ;; esac
 case "$data_home:$state_home" in *'/../'*|*'/..:'*|*':../'*|*':..') fail 'HOME/XDG paths must not contain ..' ;; esac
 
-state_dir="$state_home/dev-agent-config/tools/graphify"
+MANAGER_ID=contextrivet
+if [ ! -e "$state_home/contextrivet/tools/graphify" ] && [ ! -L "$state_home/contextrivet/tools/graphify" ] &&
+   [ ! -e "$data_home/contextrivet/tools/graphify" ] && [ ! -L "$data_home/contextrivet/tools/graphify" ] &&
+   { [ -e "$state_home/dev-agent-config/tools/graphify" ] || [ -L "$state_home/dev-agent-config/tools/graphify" ] ||
+     [ -e "$data_home/dev-agent-config/tools/graphify" ] || [ -L "$data_home/dev-agent-config/tools/graphify" ]; }; then
+  MANAGER_ID=dev-agent-config
+fi
+state_dir="$state_home/${MANAGER_ID}/tools/graphify"
 last_backup="$state_dir/last-backup"
 current_release="$state_dir/current-release.tsv"
-tool_parent="$data_home/dev-agent-config/tools/graphify"
+tool_parent="$data_home/${MANAGER_ID}/tools/graphify"
 
 set_release() {
   PACKAGE_VERSION="$1"
@@ -48,7 +55,7 @@ set_release() {
   WHEEL_URL="$3"
   WHEEL_SHA256="$4"
   tool_dir="$tool_parent/$PACKAGE_VERSION"
-  marker="$tool_dir/.dev-agent-config-tool"
+  marker="$tool_dir/.${MANAGER_ID}-tool"
   graphify="$tool_dir/venv/bin/graphify"
 }
 
@@ -73,8 +80,8 @@ cleanup_install() {
     if [ -n "$restore" ] && [ -d "$restore" ] && [ ! -L "$restore" ]; then
       mkdir -p "$(dirname "$target")" && cp -a "$restore" "$target" || return 1
     fi
-  elif { [ -f "$target/.dev-agent-config-installing" ] && [ ! -L "$target/.dev-agent-config-installing" ]; } ||
-    { [ -f "$target/.dev-agent-config-tool" ] && [ ! -L "$target/.dev-agent-config-tool" ] && expected_marker | cmp -s - "$target/.dev-agent-config-tool"; }; then
+  elif { [ -f "$target/.${MANAGER_ID}-installing" ] && [ ! -L "$target/.${MANAGER_ID}-installing" ]; } ||
+    { [ -f "$target/.${MANAGER_ID}-tool" ] && [ ! -L "$target/.${MANAGER_ID}-tool" ] && expected_marker | cmp -s - "$target/.${MANAGER_ID}-tool"; }; then
     rm -rf -- "$target" || return 1
     if [ -n "$restore" ] && [ -d "$restore" ] && [ ! -L "$restore" ]; then
       cp -a "$restore" "$target" || return 1
@@ -274,7 +281,7 @@ project_index_root() {
   local project="$1" name key
   name="$(basename "$project" | tr -c 'A-Za-z0-9._-' '_')"
   key="$(printf '%s' "$project" | cksum | awk '{print $1}')"
-  printf '%s/dev-agent-config/graphify/indexes/%s-%s\n' "$data_home" "$name" "$key"
+  printf "%s/${MANAGER_ID}/graphify/indexes/%s-%s\n" "$data_home" "$name" "$key"
 }
 
 expected_index_marker() { printf 'project=%s\n' "$project"; }
@@ -309,7 +316,7 @@ cleanup_stale_stages() {
   for stale in "$tool_parent"/.graphify-*.staging.*; do
     [ -e "$stale" ] || [ -L "$stale" ] || continue
     [ -d "$stale" ] && [ ! -L "$stale" ] || fail "Refusing unsafe staging path: $stale"
-    [ -f "$stale/.dev-agent-config-stage" ] && [ ! -L "$stale/.dev-agent-config-stage" ] || fail "Refusing unowned staging path: $stale"
+    [ -f "$stale/.${MANAGER_ID}-stage" ] && [ ! -L "$stale/.${MANAGER_ID}-stage" ] || fail "Refusing unowned staging path: $stale"
     rm -rf -- "$stale" || fail "Could not remove interrupted staging directory: $stale"
   done
 }
@@ -373,7 +380,7 @@ preflight() {
     prerequisite_hint >&2
     return 1
   fi
-  STAGE="$(mktemp -d "${TMPDIR:-/tmp}/dev-agent-config-graphify-preflight.XXXXXX")"
+  STAGE="$(mktemp -d "${TMPDIR:-/tmp}/contextrivet-graphify-preflight.XXXXXX")"
   probe="$STAGE/venv"
   result=0
   ensure_venv_pip "$python" "$probe" || result=$?
@@ -525,7 +532,7 @@ install_tool() {
   mkdir -p "$tool_parent"
   cleanup_stale_stages
   STAGE="$(mktemp -d "$tool_parent/.graphify-$PACKAGE_VERSION.staging.XXXXXX")"
-  printf '%s\n' "$PACKAGE_VERSION" > "$STAGE/.dev-agent-config-stage"
+  printf '%s\n' "$PACKAGE_VERSION" > "$STAGE/.${MANAGER_ID}-stage"
   ensure_venv_pip "$python" "$STAGE/download-venv" || fail 'Could not create the temporary download environment after preflight'
   run_install_step 'Graphify wheel download' "$STAGE/download-venv/bin/python" -m pip download --disable-pip-version-check --no-deps --dest "$STAGE" "$WHEEL_URL"
   wheel="$STAGE/$WHEEL_FILE"
@@ -537,7 +544,7 @@ install_tool() {
   if [ "$operation" = repair ]; then RESTORE_BACKUP="$backup/original"; fi
   if [ "$operation" = repair ]; then rm -rf "$tool_dir"; fi
   mkdir -p "$tool_dir"
-  printf '%s\n' "$PACKAGE_VERSION" > "$tool_dir/.dev-agent-config-installing"
+  printf '%s\n' "$PACKAGE_VERSION" > "$tool_dir/.${MANAGER_ID}-installing"
   ensure_venv_pip "$python" "$tool_dir/venv" || fail 'Could not create the permanent Graphify virtual environment with pip'
   run_install_step 'Graphify installation' "$tool_dir/venv/bin/python" -m pip install --disable-pip-version-check "$wheel"
   [ "$("$tool_dir/venv/bin/python" -c 'from importlib.metadata import version; print(version("graphifyy"))')" = "$PACKAGE_VERSION" ] || fail 'Installed package version mismatch'
@@ -554,13 +561,13 @@ install_tool() {
   else
     fail 'Dependency recording failed'
   fi
-  expected_marker > "$tool_dir/.dev-agent-config-tool"
+  expected_marker > "$tool_dir/.${MANAGER_ID}-tool"
   printf '%s\t%s\t%s\t%s\n' "$PACKAGE_VERSION" "$WHEEL_FILE" "$WHEEL_URL" "$WHEEL_SHA256" > "$tool_dir/release.tsv"
   cleanup_stage || fail 'Could not clean verified download staging directory'
   mkdir -p "$state_dir"
   release_tmp="$state_dir/.current-release.$$"
   printf '%s\t%s\t%s\t%s\n' "$PACKAGE_VERSION" "$WHEEL_FILE" "$WHEEL_URL" "$WHEEL_SHA256" > "$release_tmp"
-  rm "$tool_dir/.dev-agent-config-installing"
+  rm "$tool_dir/.${MANAGER_ID}-installing"
   mv "$release_tmp" "$current_release"
   INSTALL_TARGET=''
   RESTORE_BACKUP=''
@@ -711,7 +718,7 @@ index_project() {
   case "$output_physical" in "$project"|"$project"/*) fail 'Graphify output must be outside the source project' ;; esac
   healthy || fail "Graphify $PACKAGE_VERSION is not installed and healthy"
   final="$output/graphify-out"
-  index_marker="$final/.dev-agent-config-index"
+  index_marker="$final/.${MANAGER_ID}-index"
   if [ -e "$index_marker" ] || [ -L "$index_marker" ]; then
     [ -f "$index_marker" ] && [ ! -L "$index_marker" ] && expected_index_marker | cmp -s - "$index_marker" || fail "Graph output ownership conflict: $index_marker"
   fi
@@ -740,7 +747,7 @@ index_project() {
   fi
 }
 
-operation_lock_path() { printf '%s/.dev-agent-config-operation\n' "$(dirname "$1")"; }
+operation_lock_path() { printf "%s/.${MANAGER_ID}-operation\n" "$(dirname "$1")"; }
 
 check_operation_lock() {
   local final="$1" reap="$2" lock owner pid action recorded_project entry
@@ -875,7 +882,7 @@ validate_generated_tree() {
     base="$(basename "$entry")"
     type="$(path_type "$entry")"
     [ "$type" != symlink ] || fail "Refusing symlink in generated Graphify index: $entry"
-    if [ "$base" = .dev-agent-config-index ]; then
+    if [ "$base" = ".${MANAGER_ID}-index" ]; then
       [ "$type" = file ] && expected_index_marker | cmp -s - "$entry" || fail "Index ownership metadata changed during cleanup: $entry"
     elif [ "$base" = cache ]; then
       validate_cache_tree "$entry" cache-root
@@ -893,7 +900,7 @@ remove_generated_tree() {
   for entry in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
     [ -e "$entry" ] || [ -L "$entry" ] || continue
     base="$(basename "$entry")"
-    [ "$base" != .dev-agent-config-index ] || continue
+    [ "$base" != ".${MANAGER_ID}-index" ] || continue
     type="$(path_type "$entry")"
     [ "$type" != symlink ] || fail "Refusing symlink during Graphify cleanup: $entry"
     if [ "$type" = directory ]; then
@@ -939,7 +946,7 @@ clean_project() {
     directory) ;;
     *) fail "Refusing unsafe generated index path: $final ($(path_type "$final"))" ;;
   esac
-  marker="$final/.dev-agent-config-index"
+  marker="$final/.${MANAGER_ID}-index"
   if [ -e "$marker" ] || [ -L "$marker" ]; then
     [ -f "$marker" ] && [ ! -L "$marker" ] && expected_index_marker | cmp -s - "$marker" || fail "Index ownership metadata is missing, changed, or belongs to another project: $marker"
     owned=1
@@ -1130,7 +1137,7 @@ run_project() {
   validate_path "$output/graphify-out"
   case "$(physical_path "$output")" in "$project"|"$project"/*) fail 'Graphify output must be outside the source project' ;; esac
   final="$output/graphify-out"
-  index_marker="$final/.dev-agent-config-index"
+  index_marker="$final/.${MANAGER_ID}-index"
   state_file="$(run_state_path "$project" "$output")"
   validate_path "$state_file"
 
@@ -1194,7 +1201,7 @@ run_project() {
   else
     if [ -d "$final" ]; then
       mkdir -p "$output"
-      RUN_BACKUP="$(mktemp -d "$output/.dev-agent-config-run.XXXXXX")"
+      RUN_BACKUP="$(mktemp -d "$output/.${MANAGER_ID}-run.XXXXXX")"
       RUN_BACKUP_TARGET="$final"
       RUN_BACKUP_OLD=1
       mv "$final" "$RUN_BACKUP/original" || fail "Could not stage the previous Graphify index: $final"
@@ -1205,7 +1212,7 @@ run_project() {
     if [ -n "$RUN_BACKUP" ] && [ -d "$RUN_BACKUP/original" ]; then
       validate_generated_tree "$RUN_BACKUP/original"
       remove_generated_tree "$RUN_BACKUP/original" output
-      rm -f -- "$RUN_BACKUP/original/.dev-agent-config-index"
+      rm -f -- "$RUN_BACKUP/original/.${MANAGER_ID}-index"
       rmdir "$RUN_BACKUP/original" || fail 'Could not remove the replaced Graphify index backup'
       RUN_BACKUP_COMMITTED=1
       cleanup_run_backup || fail 'Could not clean the previous Graphify index backup'
@@ -1224,7 +1231,7 @@ run_project() {
 
 help() {
   cat <<EOF
-Usage: dev-agent-config graphify <command> [options]
+Usage: contextrivet graphify <command> [options]
 
 Commands:
   install [--dry-run] [--verbose]       Install latest stable Graphify

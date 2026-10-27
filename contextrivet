@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_path="${BASH_SOURCE[0]}"
+while [ -L "$source_path" ]; do
+  source_dir="$(cd -P "$(dirname "$source_path")" && pwd)"
+  link_target="$(readlink "$source_path")"
+  case "$link_target" in /*) source_path="$link_target" ;; *) source_path="$source_dir/$link_target" ;; esac
+done
+ROOT="$(cd -P "$(dirname "$source_path")" && pwd)"
+
+help() {
+  . "$ROOT/scripts/lib/help.sh"
+  help_palette
+  printf '\n'
+  if [ "$HELP_WIDTH" -ge 64 ]; then
+    printf '  %s╭──────────────────────────────────────────────────────────╮%s\n' "$HELP_PURPLE" "$HELP_RESET"
+    printf '  %s│%s  %scontextrivet — context that stays with your code%s        %s│%s\n' "$HELP_PURPLE" "$HELP_RESET" "$HELP_BOLD$HELP_CYAN" "$HELP_RESET" "$HELP_PURPLE" "$HELP_RESET"
+    printf '  %s│%s  Rules · architecture · skills · project knowledge       %s│%s\n' "$HELP_PURPLE" "$HELP_RESET" "$HELP_PURPLE" "$HELP_RESET"
+    printf '  %s╰──────────────────────────────────────────────────────────╯%s\n' "$HELP_PURPLE" "$HELP_RESET"
+  else
+    printf '  %scontextrivet — project context%s\n' "$HELP_BOLD$HELP_CYAN" "$HELP_RESET"
+  fi
+  printf '\n    %sNestJS%s  /  %sNext.js%s  /  %sFlutter%s\n' "$HELP_GREEN" "$HELP_RESET" "$HELP_CYAN" "$HELP_RESET" "$HELP_PURPLE" "$HELP_RESET"
+  help_section 'USAGE'
+  printf '    %scontextrivet <command> [options]%s\n' "$HELP_CYAN" "$HELP_RESET"
+  help_section 'PROJECT CONTEXT'
+  help_row 'project init [options]' 'Set up rules and architecture'
+  help_row 'project status' 'Check project readiness'
+  help_row 'project skills --stack <stack>' 'List stack skill references'
+  help_row 'project skills install [options]' 'Install selected project skills'
+  help_row 'project backups' 'Find originals and recovery copies'
+  help_row 'project restore --backup <id>' 'Restore a selected transaction'
+  help_row 'project uninstall' 'Remove managed project setup'
+  help_section 'SHARED AGENT CONFIGURATION'
+  help_row 'install [--mode=merge|replace]' 'Install shared rules and skills'
+  help_row 'verify [--json]' 'Check agent configuration'
+  help_row 'rollback [BACKUP]' 'Restore a global transaction'
+  help_row 'uninstall [--apply]' 'Remove shared configuration'
+  help_section 'CODE INTELLIGENCE'
+  help_row 'cbm run [options]' 'Prepare CBM for a Git project'
+  help_row 'graphify <action> [options]' 'Manage code graphs and reports'
+  help_row 'tools codebase-memory-mcp <command>' 'Manage CBM and agent integrations'
+  help_row 'tools <tool> <action> [options]' 'Manage optional tools'
+  help_section 'CLI & UTILITIES'
+  help_row 'cli install|uninstall [options]' 'Manage the user-local command link'
+  help_row 'completion zsh|bash' 'Enable shell Tab completion'
+  help_row 'benchmark REPOSITORY OUTPUT_DIR' 'Prepare isolated comparison runs'
+  help_row 'help | -h | --help' 'Show this panel'
+  help_section 'QUICK START'
+  printf '    %scontextrivet project init --stack nestjs --dry-run%s\n' "$HELP_GREEN" "$HELP_RESET"
+  printf '    %scontextrivet project init --stack nextjs --agents codex%s\n' "$HELP_GREEN" "$HELP_RESET"
+  printf '    %scontextrivet project skills --stack flutter%s\n' "$HELP_GREEN" "$HELP_RESET"
+  printf '    %scontextrivet project skills install --all --dry-run%s\n' "$HELP_GREEN" "$HELP_RESET"
+  printf '\n    %sUse contextrivet <command> --help for details.%s\n' "$HELP_DIM" "$HELP_RESET"
+  printf '    %sPreview changes with --dry-run; existing setup requires consent.%s\n' "$HELP_DIM" "$HELP_RESET"
+  printf '    %sCLI links live in ~/.local/bin; shell profiles are never edited.%s\n' "$HELP_DIM" "$HELP_RESET"
+  printf '    %sFlutter skills available; NestJS/Next.js catalogs await contributions.%s\n' "$HELP_DIM" "$HELP_RESET"
+  printf '    %sDocs: README.md | Contributions: CONTRIBUTING.md | License: MIT%s\n\n' "$HELP_DIM" "$HELP_RESET"
+}
+
+command="${1:-help}"
+shift || true
+if [ "$command" = cbm ] && { [ "${1:-}" = -h ] || [ "${1:-}" = --help ] || [ "${1:-}" = help ]; }; then
+  exec bash "$ROOT/scripts/tools.sh" codebase-memory-mcp --help
+fi
+if [ "$command" != graphify ] && [ "$command" != project ] && [ "$command" != completion ] && { [ "${1:-}" = -h ] || [ "${1:-}" = --help ]; }; then help; exit 0; fi
+case "$command" in
+  help|-h|--help) help ;;
+  completion) exec bash "$ROOT/scripts/completion.sh" "$@" ;;
+  install) exec bash "$ROOT/scripts/install.sh" "$@" ;;
+  verify) exec bash "$ROOT/scripts/verify.sh" "$@" ;;
+  rollback) exec bash "$ROOT/scripts/rollback.sh" "$@" ;;
+  uninstall) exec bash "$ROOT/scripts/uninstall.sh" "$@" ;;
+  benchmark) exec bash "$ROOT/scripts/benchmark.sh" "$@" ;;
+  project)
+    command -v python3 >/dev/null 2>&1 || { echo 'ERROR: Project setup requires Python 3' >&2; exit 1; }
+    exec python3 "$ROOT/scripts/project.py" "$@"
+    ;;
+  tools) exec bash "$ROOT/scripts/tools.sh" "$@" ;;
+  cbm)
+    [ "${1:-}" = run ] && shift || :
+    exec bash "$ROOT/scripts/tools.sh" codebase-memory-mcp run "$@"
+    ;;
+  graphify) exec bash "$ROOT/scripts/tools.sh" graphify "$@" ;;
+  cli)
+    action="${1:-}"
+    [ -n "$action" ] || { help; exit 2; }
+    shift
+    exec bash "$ROOT/scripts/cli-link.sh" "$action" "$@"
+    ;;
+  *) printf 'ERROR: Unknown command: %s\n\n' "$command" >&2; help >&2; exit 2 ;;
+esac

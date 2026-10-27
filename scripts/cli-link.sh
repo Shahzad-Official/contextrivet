@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-CLI="$ROOT/dev-agent-config"
+CLI="$ROOT/contextrivet"
 action="${1:-}"
 shift || true
-bin_dir="${DEV_AGENT_CONFIG_BIN:-$HOME/.local/bin}"
+bin_dir="${CONTEXTRIVET_BIN:-${DEV_AGENT_CONFIG_BIN:-$HOME/.local/bin}}"
 dry=0
 
 while [ "$#" -gt 0 ]; do
@@ -17,7 +17,7 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-case "$action" in install|uninstall) ;; *) echo 'Usage: dev-agent-config cli {install|uninstall} [--dry-run] [--bin-dir PATH]' >&2; exit 2 ;; esac
+case "$action" in install|uninstall) ;; *) echo 'Usage: contextrivet cli {install|uninstall} [--dry-run] [--bin-dir PATH]' >&2; exit 2 ;; esac
 case "$bin_dir" in "$HOME"/*) ;; *) echo "ERROR: CLI bin directory must be inside HOME: $bin_dir" >&2; exit 1 ;; esac
 case "$bin_dir" in *'/../'*|*'/..') echo 'ERROR: CLI bin directory must not contain ..' >&2; exit 1 ;; esac
 
@@ -29,7 +29,7 @@ while [ "$current" != "$HOME" ]; do
   current="$parent"
 done
 
-target="$bin_dir/dev-agent-config"
+target="$bin_dir/contextrivet"
 if [ "$action" = install ]; then
   if [ -L "$target" ]; then
     [ "$(readlink "$target")" = "$CLI" ] || { echo "ERROR: Refusing existing CLI symlink: $target" >&2; exit 1; }
@@ -51,6 +51,13 @@ else
     echo "ERROR: Refusing to remove a CLI path not owned by this checkout: $target" >&2
     exit 1
   fi
+fi
+
+# Remove only this checkout's old CLI link after the requested link operation succeeds.
+legacy="$bin_dir/dev-agent-config"
+if [ -L "$legacy" ] && { [ "$(readlink "$legacy")" = "$ROOT/dev-agent-config" ] || [ "$(readlink "$legacy")" = "$CLI" ]; }; then
+  echo "$( [ "$dry" -eq 1 ] && printf WOULD_UNLINK || printf UNLINKING ) legacy CLI link: $legacy"
+  [ "$dry" -eq 1 ] || rm "$legacy"
 fi
 
 case ":${PATH:-}:" in

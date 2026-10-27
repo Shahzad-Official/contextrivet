@@ -126,25 +126,25 @@ run() (
   cd "$project"
   HOME="$home" CODEX_HOME="$home/.codex" XDG_STATE_HOME="$home/state" XDG_DATA_HOME="$home/data" XDG_CONFIG_HOME="$home/config" \
     CBM_CACHE_DIR="$home/isolate/cache" CBM_FAKE_PROJECTS="$home/projects.json" CBM_CALL_LOG="$log" \
-    CBM_TEST_BINARY="$home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" \
+    CBM_TEST_BINARY="$home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" \
     CBM_FAKE_PORT_MODE="${CBM_FAKE_PORT_MODE:-}" CBM_FAKE_UI_HEALTHY="${CBM_FAKE_UI_HEALTHY:-0}" \
     CBM_FAKE_PORT_BUSY="${CBM_FAKE_PORT_BUSY:-0}" CBM_FAKE_PORT_STATE="${CBM_FAKE_PORT_STATE:-$home/port-state}" \
     CBM_FAKE_UI_STARTED="$home/ui-session-started" \
     CBM_CURL_LOG="$home/curl.log" \
     CBM_TEST_RELEASE="$RELEASE" CBM_REAL_PYTHON="$REAL_PYTHON" PATH="$BIN:/usr/bin:/bin" \
-    "$ROOT/dev-agent-config" cbm run "$@"
+    "$ROOT/contextrivet" cbm run "$@"
 )
 run_tool() (
   home="$1"; project="$2"; log="$3"; shift 3
   cd "$project"
   HOME="$home" CODEX_HOME="$home/.codex" XDG_STATE_HOME="$home/state" XDG_DATA_HOME="$home/data" XDG_CONFIG_HOME="$home/config" \
     CBM_CACHE_DIR="$home/isolate/cache" CBM_FAKE_PROJECTS="$home/projects.json" CBM_CALL_LOG="$log" \
-    CBM_TEST_BINARY="$home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" \
+    CBM_TEST_BINARY="$home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" \
     CBM_FAKE_PORT_MODE="${CBM_FAKE_PORT_MODE:-}" CBM_FAKE_UI_HEALTHY="${CBM_FAKE_UI_HEALTHY:-0}" \
     CBM_FAKE_PORT_BUSY="${CBM_FAKE_PORT_BUSY:-0}" CBM_FAKE_PORT_STATE="${CBM_FAKE_PORT_STATE:-$home/port-state}" \
     CBM_FAKE_UI_STARTED="$home/ui-session-started" \
     CBM_TEST_RELEASE="$RELEASE" CBM_REAL_PYTHON="$REAL_PYTHON" PATH="$BIN:/usr/bin:/bin" \
-    "$ROOT/dev-agent-config" tools codebase-memory-mcp "$@"
+    "$ROOT/contextrivet" tools codebase-memory-mcp "$@"
 )
 write_empty_projects() { printf '{"projects":[]}\n' > "$1/projects.json"; }
 
@@ -170,7 +170,7 @@ grep -q 'env_vars = \[\"CBM_CACHE_DIR\"\]' "$home/.codex/config.toml"
 grep -q "cache=$home/isolate/cache" "$log" || { cat "$log"; exit 1; }
 [ -L "$home/.agents/instructions/code-intelligence.md" ]
 [ "$(cksum "$project/AGENTS.md")" = "$project_rule" ]
-test -f "$home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/.manager-owned.tsv"
+test -f "$home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/.manager-owned.tsv"
 
 # Existing indexes aren't refreshed without a positive stale signal or --refresh.
 before="$(grep -c index_repository "$log")"
@@ -183,7 +183,7 @@ grep -q 'CBM confirmed stale; refreshing' <<< "$result"
 result="$(CBM_FAKE_PORT_MODE=cbm-healthy CBM_FAKE_UI_HEALTHY=1 run "$home" "$project" "$log" --agent codex)"
 grep -q 'healthy CBM UI is already served by the shared daemon' <<< "$result"
 grep -q 'dashboard: http://127.0.0.1:9749/?project=fresh-app' <<< "$result"
-[ ! -e "$home/state/dev-agent-config/tools/codebase-memory-mcp/dashboard/process.tsv" ]
+[ ! -e "$home/state/contextrivet/tools/codebase-memory-mcp/dashboard/process.tsv" ]
 
 # The explicit Antigravity selector is routed through the documented global
 # Gemini config path and keeps the existing project index.
@@ -192,7 +192,7 @@ result="$(run "$home" "$project" "$log" --no-dashboard --agent antigravity)"
 grep -q 'MCP antigravity: ENABLED' <<< "$result"
 grep -q 'Antigravity MCP' <<< "$result"
 [ -f "$home/.gemini/config/mcp_config.json" ]
-python3 - "$home/.gemini/config/mcp_config.json" "$home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" "$home/isolate/cache" <<'PY'
+python3 - "$home/.gemini/config/mcp_config.json" "$home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" "$home/isolate/cache" <<'PY'
 import json,pathlib,sys
 d=json.load(open(sys.argv[1])); e=d['mcpServers']['codebase-memory-mcp']
 assert pathlib.Path(e['command']).resolve()==pathlib.Path(sys.argv[2]).resolve()
@@ -206,7 +206,7 @@ before="$(find "$dryhome" -type f -exec cksum {} + | cksum)"
 result="$(run "$dryhome" "$dryproject" "$drylog" --dry-run --no-mcp --no-dashboard)"
 grep -q 'WOULD_INSTALL pinned 0.11.0' <<< "$result"
 grep -q 'not queried (dry-run does not contact CBM runtime)' <<< "$result"
-[ ! -e "$dryhome/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
+[ ! -e "$dryhome/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
 [ ! -e "$drylog" ]
 [ "$(find "$dryhome" -type f -exec cksum {} + | cksum)" = "$before" ]
 
@@ -230,7 +230,7 @@ grep -q 'externally managed (preserved)' <<< "$result"
 grep -q 'stale state not confirmed, no refresh performed' <<< "$result"
 [ "$binhash" = "$(cksum "$ext/.local/bin/codebase-memory-mcp")" ]
 [ "$confighash" = "$(cksum "$ext/.codex/config.toml")" ]
-[ ! -e "$ext/state/dev-agent-config/tools/codebase-memory-mcp/codex-mcp.tsv" ]
+[ ! -e "$ext/state/contextrivet/tools/codebase-memory-mcp/codex-mcp.tsv" ]
 
 # OpenCode selection preserves its unrelated MCP config and receives the isolated cache path.
 oc="$SANDBOX/opencode"; ocproject="$SANDBOX/projects/opencode"; oclog="$SANDBOX/opencode.log"
@@ -252,19 +252,19 @@ mkdir -p "$none/bin"; make_project "$noneproject"; cp "$RELEASE/codebase-memory-
 printf '{"projects":[]}\n' > "$none/projects.json"
 result="$(HOME="$none" XDG_STATE_HOME="$none/state" XDG_DATA_HOME="$none/data" XDG_CONFIG_HOME="$none/config" \
   CBM_FAKE_PROJECTS="$none/projects.json" CBM_CALL_LOG="$nonelog" CBM_REAL_PYTHON="$REAL_PYTHON" PATH="$none/bin:$BIN:/usr/bin:/bin" \
-  "$ROOT/dev-agent-config" cbm run --no-dashboard)"
+  "$ROOT/contextrivet" cbm run --no-dashboard)"
 grep -q 'no supported agent configuration detected' <<< "$result"
 if HOME="$none" XDG_STATE_HOME="$none/state" XDG_DATA_HOME="$none/data" XDG_CONFIG_HOME="$none/config" \
-  PATH="$none/bin:$BIN:/usr/bin:/bin" "$ROOT/dev-agent-config" cbm run --agent cursor --no-dashboard > "$SANDBOX/unsupported" 2>&1; then
+  PATH="$none/bin:$BIN:/usr/bin:/bin" "$ROOT/contextrivet" cbm run --agent cursor --no-dashboard > "$SANDBOX/unsupported" 2>&1; then
   echo 'Unsupported MCP agent was accepted' >&2; exit 1
 fi
 grep -q 'Unsupported CBM MCP agent: cursor' "$SANDBOX/unsupported"
 
 # Reuse an exact manager-owned dashboard; an occupied external port fails closed.
-meta="$home/state/dev-agent-config/tools/codebase-memory-mcp/dashboard/process.tsv"
+meta="$home/state/contextrivet/tools/codebase-memory-mcp/dashboard/process.tsv"
 mkdir -p "$(dirname "$meta")"
 project_real="$(cd -P "$project" && pwd)"
-printf 'ownership\tdev-agent-config\npid\t%s\nnonce\tfixture-nonce\nbinary\t%s\nport\t9749\nproject_path\t%s\nproject_name\tfresh-app\n' \
+printf 'ownership\tcontextrivet\npid\t%s\nnonce\tfixture-nonce\nbinary\t%s\nport\t9749\nproject_path\t%s\nproject_name\tfresh-app\n' \
   "$$" "$home/.local/bin/codebase-memory-mcp" "$project_real" > "$meta"
 result="$(run "$home" "$project" "$log" --agent codex)"
 grep -q 'UNCHANGED: dashboard already serving' <<< "$result"
@@ -288,7 +288,7 @@ result="$(CBM_FAKE_PORT_MODE=cbm-transient CBM_FAKE_PORT_STATE="$home/port-state
 grep -q 'starting a persistent UI session' <<< "$result"
 grep -q 'HTTP readiness: healthy' <<< "$result"
 grep -q 'CBM bootstrap summary:' <<< "$result"
-grep -q 'Starting persistent CBM UI session' "$home/state/dev-agent-config/tools/codebase-memory-mcp/dashboard/dashboard.log"
+grep -q 'Starting persistent CBM UI session' "$home/state/contextrivet/tools/codebase-memory-mcp/dashboard/dashboard.log"
 run_tool "$home" "$project" "$log" dashboard stop >/dev/null
 if CBM_FAKE_PORT_MODE=unrelated run_tool "$home" "$project" "$log" dashboard start --port 9749 --dry-run > "$SANDBOX/unrelated-port" 2>&1; then
   echo 'Unrelated listener was accepted as a CBM dashboard' >&2; exit 1

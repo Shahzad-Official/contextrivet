@@ -131,7 +131,7 @@ chmod +x "$fakebin/sha256sum"
 cat > "$fakebin/rm" <<'REMOVE'
 #!/usr/bin/env bash
 if [ "${FAKE_CLEANUP_FAIL:-0}" = 1 ]; then
-  for arg in "$@"; do case "$arg" in *dev-agent-config-graphify-preflight*) exit 7 ;; esac; done
+  for arg in "$@"; do case "$arg" in *contextrivet-graphify-preflight*) exit 7 ;; esac; done
 fi
 exec /bin/rm "$@"
 REMOVE
@@ -173,13 +173,13 @@ run_tool_from() {
   (cd "$project_dir" && run_tool "$home" "$@")
 }
 
-tool_dir() { printf '%s/data/dev-agent-config/tools/graphify/%s\n' "$1" "${2:-0.9.88}"; }
+tool_dir() { printf '%s/data/contextrivet/tools/graphify/%s\n' "$1" "${2:-0.9.88}"; }
 project_index_root() {
   local project="$1" name key
   project="$(cd "$project" && pwd -P)"
   name="$(basename "$project" | tr -c 'A-Za-z0-9._-' '_')"
   key="$(printf '%s' "$project" | cksum | awk '{print $1}')"
-  printf '%s/data/dev-agent-config/graphify/indexes/%s-%s\n' "$home" "$name" "$key"
+  printf '%s/data/contextrivet/graphify/indexes/%s-%s\n' "$home" "$name" "$key"
 }
 
 # Preflight does not need system pip, bootstraps missing venv pip, and explains blockers.
@@ -212,12 +212,12 @@ if FAKE_STAGE_FAIL=1 run_tool "$home" install >"$home/install-failure.out" 2>&1;
 grep -q 'Details: .*install-.*\.log' "$home/install-failure.out"
 grep -q 'fixture wheel install failed' "$home/install-failure.out"
 [ ! -e "$(tool_dir "$home")" ]
-[ ! -e "$home/state/dev-agent-config/tools/graphify/current-release.tsv" ]
+[ ! -e "$home/state/contextrivet/tools/graphify/current-release.tsv" ]
 
 home="$(new_home interrupted)"
-stale="$home/data/dev-agent-config/tools/graphify/.graphify-0.9.88.staging.interrupted"
+stale="$home/data/contextrivet/tools/graphify/.graphify-0.9.88.staging.interrupted"
 mkdir -p "$stale"
-printf '0.9.88\n' > "$stale/.dev-agent-config-stage"
+printf '0.9.88\n' > "$stale/.contextrivet-stage"
 run_tool "$home" install >/dev/null
 [ ! -e "$stale" ]
 run_tool "$home" verify >/dev/null
@@ -234,10 +234,10 @@ shebang="$(sed -n '1s/^#!//p' "$entrypoint")"
 [ -x "$shebang" ]
 case "$shebang" in *staging*) echo 'Installed entry point references staging' >&2; exit 1 ;; esac
 grep -qFx 'graphifyy==0.9.88' "$(tool_dir "$home")/dependencies.txt"
-before="$(find "$home/state/dev-agent-config/tools/graphify/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+before="$(find "$home/state/contextrivet/tools/graphify/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 repeat_output="$(run_tool "$home" install)"
 case "$repeat_output" in UNCHANGED*) ;; *) echo 'Repeated install was not unchanged' >&2; exit 1 ;; esac
-after="$(find "$home/state/dev-agent-config/tools/graphify/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+after="$(find "$home/state/contextrivet/tools/graphify/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [ "$before" = "$after" ]
 
 # Installation output stays concise unless verbose mode is explicitly requested.
@@ -263,7 +263,7 @@ FAKE_LATEST_VERSION=0.9.89 run_tool "$home" upgrade --dry-run >/dev/null
 FAKE_LATEST_VERSION=0.9.89 run_tool "$home" upgrade >/dev/null
 verify_output="$(run_tool "$home" verify)"
 case "$verify_output" in *'Graphify 0.9.89: healthy'*) ;; *) exit 1 ;; esac
-upgrade_backup="$(sed -n '1p' "$home/state/dev-agent-config/tools/graphify/last-backup")"
+upgrade_backup="$(sed -n '1p' "$home/state/contextrivet/tools/graphify/last-backup")"
 run_tool "$home" rollback "$upgrade_backup" >/dev/null
 verify_output="$(run_tool "$home" verify)"
 case "$verify_output" in *'Graphify 0.9.88: healthy'*) ;; *) exit 1 ;; esac
@@ -296,7 +296,7 @@ grep -qFx keep "$foreign/file"
 # Install rollback removes only the unchanged manager-owned environment.
 home="$(new_home install-rollback)"
 run_tool "$home" install >/dev/null
-backup="$(sed -n '1p' "$home/state/dev-agent-config/tools/graphify/last-backup")"
+backup="$(sed -n '1p' "$home/state/contextrivet/tools/graphify/last-backup")"
 run_tool "$home" rollback --dry-run "$backup" >/dev/null
 [ -d "$(tool_dir "$home")" ]
 run_tool "$home" rollback "$backup" >/dev/null
@@ -308,10 +308,10 @@ run_tool "$home" install >/dev/null
 run_tool "$home" remove --dry-run >/dev/null
 [ -d "$(tool_dir "$home")" ]
 run_tool "$home" remove >/dev/null
-backup="$(sed -n '1p' "$home/state/dev-agent-config/tools/graphify/last-backup")"
+backup="$(sed -n '1p' "$home/state/contextrivet/tools/graphify/last-backup")"
 run_tool "$home" rollback "$backup" >/dev/null
 run_tool "$home" verify >/dev/null
-printf 'changed\n' > "$(tool_dir "$home")/.dev-agent-config-tool"
+printf 'changed\n' > "$(tool_dir "$home")/.contextrivet-tool"
 if run_tool "$home" remove >/dev/null 2>&1; then echo 'Modified ownership metadata was accepted' >&2; exit 1; fi
 
 # Index defaults to its current directory and always keeps code-only output outside it.
@@ -410,11 +410,11 @@ verify_active="$(run_tool "$home_active" verify)"
 case "$verify_active" in *'Graphify 0.9.89: healthy'*) ;; *) printf '%s\n' "$verify_active" >&2; exit 1 ;; esac
 FAKE_LATEST_VERSION=0.9.90 run_tool "$home_active" upgrade >/dev/null
 run_tool "$home_active" verify | grep 'Graphify 0.9.90: healthy' >/dev/null
-upgrade_backup="$(sed -n '1p' "$home_active/state/dev-agent-config/tools/graphify/last-backup")"
+upgrade_backup="$(sed -n '1p' "$home_active/state/contextrivet/tools/graphify/last-backup")"
 run_tool "$home_active" rollback "$upgrade_backup" >/dev/null
 run_tool "$home_active" verify | grep 'Graphify 0.9.89: healthy' >/dev/null
 FAKE_PYPI_FAIL=1 run_tool "$home_active" remove >/dev/null
-remove_backup="$(sed -n '1p' "$home_active/state/dev-agent-config/tools/graphify/last-backup")"
+remove_backup="$(sed -n '1p' "$home_active/state/contextrivet/tools/graphify/last-backup")"
 run_tool "$home_active" rollback "$remove_backup" >/dev/null
 run_tool "$home_active" verify | grep 'Graphify 0.9.89: healthy' >/dev/null
 
@@ -551,10 +551,10 @@ if command -v zsh >/dev/null 2>&1; then
     XDG_STATE_HOME="$home_cwd/state" PATH="$fakebin:/usr/bin:/bin" \
     FAKE_GRAPHIFY_LOG="$home_cwd/graphify.log" TMPDIR="$home_cwd/tmp" \
     zsh -c 'cd "$1" && "$2" graphify query "$3"' zsh \
-      "$workspace_link" "$ROOT/dev-agent-config" 'zsh current directory') >/dev/null
+      "$workspace_link" "$ROOT/contextrivet" 'zsh current directory') >/dev/null
 fi
 active_final="$cwd_graph"
-operation_lock="$(dirname "$active_final")/.dev-agent-config-operation"
+operation_lock="$(dirname "$active_final")/.contextrivet-operation"
 stop_server="$home_cwd/stop-server"
 FAKE_SERVER_WAIT=1 FAKE_SERVER_STOP="$stop_server" SSH_CONNECTION=fixture \
   run_tool_from "$cwd_project" "$home_cwd" serve > "$home_cwd/active-server.out" &
@@ -655,8 +655,29 @@ ln -s "$home_clean/foreign-file" "$clean_default/graph.html"
 if run_tool "$home_clean" clean --project "$clean_project" >/dev/null 2>&1; then echo 'Clean accepted a symlink conflict' >&2; exit 1; fi
 grep -qFx foreign "$home_clean/foreign-file"
 rm "$clean_default/graph.html"
-printf 'project=/some/other/project\n' > "$clean_default/.dev-agent-config-index"
+printf 'project=/some/other/project\n' > "$clean_default/.contextrivet-index"
 if run_tool "$home_clean" clean --project "$clean_project" >/dev/null 2>&1; then echo 'Clean accepted changed ownership metadata' >&2; exit 1; fi
 [ -f "$clean_default/graph.json" ]
+
+# Old-name installations and code graphs remain managed without moving venvs.
+legacy_home="$(new_home legacy-manager)"
+run_tool "$legacy_home" install >/dev/null
+mv "$legacy_home/data/contextrivet" "$legacy_home/data/dev-agent-config"
+mv "$legacy_home/state/contextrivet" "$legacy_home/state/dev-agent-config"
+legacy_install="$legacy_home/data/dev-agent-config/tools/graphify/0.9.88"
+mv "$legacy_install/.contextrivet-tool" "$legacy_install/.dev-agent-config-tool"
+sed '1s/contextrivet/dev-agent-config/g' "$legacy_install/venv/bin/graphify" > "$legacy_install/venv/bin/graphify.next"
+mv "$legacy_install/venv/bin/graphify.next" "$legacy_install/venv/bin/graphify"
+chmod +x "$legacy_install/venv/bin/graphify"
+run_tool "$legacy_home" verify >/dev/null
+legacy_project="$legacy_home/project"
+mkdir -p "$legacy_project"
+printf 'fixture\n' > "$legacy_project/app.ts"
+run_tool "$legacy_home" index --project "$legacy_project" >/dev/null
+find "$legacy_home/data/dev-agent-config/graphify/indexes" -name .dev-agent-config-index | grep -q .
+run_tool "$legacy_home" query --project "$legacy_project" fixture >/dev/null
+run_tool "$legacy_home" clean --project "$legacy_project" >/dev/null
+[ ! -e "$legacy_home/data/contextrivet" ]
+[ ! -e "$legacy_home/state/contextrivet" ]
 
 echo 'PASS tools: install, repeat, corruption, symlinks, rollback, remove, code-only index'

@@ -55,7 +55,7 @@ HOME="$HOME" "$ROOT/scripts/install.sh" --mode=merge >/dev/null
 grep -qFx user-owned "$target"
 HOME="$HOME" "$ROOT/scripts/install.sh" --mode=replace >/dev/null
 [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ]
-backup="$(sed -n '1p' "$HOME/.agents/dev-agent-config/last-backup")"
+backup="$(sed -n '1p' "$HOME/.agents/contextrivet/last-backup")"
 HOME="$HOME" "$ROOT/scripts/rollback.sh" "$backup" >/dev/null
 [ -f "$target" ] && [ ! -L "$target" ]
 grep -qFx user-owned "$target"
@@ -70,7 +70,7 @@ fi
 grep -q 'code-intelligence.*\[broken-link\]' "$SANDBOX/broken-link-verify"
 HOME="$HOME" "$ROOT/scripts/install.sh" --mode=replace >/dev/null
 [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ]
-backup="$(sed -n '1p' "$HOME/.agents/dev-agent-config/last-backup")"
+backup="$(sed -n '1p' "$HOME/.agents/contextrivet/last-backup")"
 HOME="$HOME" "$ROOT/scripts/rollback.sh" "$backup" >/dev/null
 [ -L "$target" ] && [ "$(readlink "$target")" = "$SANDBOX/missing-original" ]
 [ ! -e "$SANDBOX/missing-original" ]

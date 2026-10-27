@@ -9,7 +9,7 @@ REAL_PYTHON="$(command -v python3)"
 run_case() {
   local os="$1" case_home fakebin
   case_home="$SANDBOX/$os"; fakebin="$case_home/bin"
-  mkdir -p "$fakebin" "$case_home/.local/bin" "$case_home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0" "$case_home/state/dev-agent-config/tools/codebase-memory-mcp"
+  mkdir -p "$fakebin" "$case_home/.local/bin" "$case_home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0" "$case_home/state/contextrivet/tools/codebase-memory-mcp"
   cat > "$fakebin/uname" <<SH
 #!/bin/sh
 case "${1:-}" in -s) echo "$os" ;; -m) echo arm64 ;; *) echo "$os" ;; esac
@@ -19,7 +19,7 @@ SH
 [ "${1:-}" = --user ] || exit 2
 shift
 case "${1:-}" in
- show) [ -f "$HOME/.config/systemd/user/dev-agent-config-cbm-dashboard.service" ] && printf '%s\n' "$HOME/.config/systemd/user/dev-agent-config-cbm-dashboard.service";;
+ show) [ -f "$HOME/.config/systemd/user/contextrivet-cbm-dashboard.service" ] && printf '%s\n' "$HOME/.config/systemd/user/contextrivet-cbm-dashboard.service";;
  is-active) [ -f "$HOME/service.active" ] && exit 0 || exit 3;;
  is-enabled) [ -f "$HOME/service.enabled" ] && exit 0 || exit 1;;
  enable) : > "$HOME/service.enabled"; : > "$HOME/service.active";;
@@ -31,8 +31,8 @@ SH
   cat > "$fakebin/launchctl" <<'SH'
 #!/bin/sh
 case "${1:-}" in
- print) [ -f "$HOME/service.active" ] && { printf 'path = %s\nstate = running\npid = 1234\n' "$HOME/Library/LaunchAgents/org.dev-agent-config.cbm-dashboard.plist"; exit 0; }; exit 113;;
- print-disabled) [ -f "$HOME/service.disabled" ] && printf '"org.dev-agent-config.cbm-dashboard" => true\n';;
+ print) [ -f "$HOME/service.active" ] && { printf 'path = %s\nstate = running\npid = 1234\n' "$HOME/Library/LaunchAgents/org.contextrivet.cbm-dashboard.plist"; exit 0; }; exit 113;;
+ print-disabled) [ -f "$HOME/service.disabled" ] && printf '"org.contextrivet.cbm-dashboard" => true\n';;
  enable) rm -f "$HOME/service.disabled";;
  disable) : > "$HOME/service.disabled";;
  bootstrap) : > "$HOME/service.active";;
@@ -52,7 +52,7 @@ case "$*" in *'s.bind(("127.0.0.1"'*) exit 0 ;; esac
 exec "$CBM_REAL_PYTHON" "$@"
 SH
   chmod +x "$fakebin/python3"
-  local executable="$case_home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp"
+  local executable="$case_home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp"
   cat > "$executable" <<'CBM'
 #!/bin/sh
 echo 'codebase-memory-mcp v0.11.0'
@@ -60,8 +60,8 @@ CBM
   chmod 755 "$executable"
   local hash
   hash="$(shasum -a 256 "$executable" | awk '{print $1}')"
-  printf 'ownership\tdev-agent-config\nversion\t0.11.0\nbinary_sha256\t%s\n' "$hash" > "$(dirname "$executable")/.manager-owned.tsv"
-  printf '0.11.0\n' > "$case_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
+  printf 'ownership\tcontextrivet\nversion\t0.11.0\nbinary_sha256\t%s\n' "$hash" > "$(dirname "$executable")/.manager-owned.tsv"
+  printf '0.11.0\n' > "$case_home/state/contextrivet/tools/codebase-memory-mcp/active-version"
   ln -s "$executable" "$case_home/.local/bin/codebase-memory-mcp"
 
   run() {
@@ -70,13 +70,13 @@ CBM
   }
 
   local def
-  if [ "$os" = Linux ]; then def="$case_home/.config/systemd/user/dev-agent-config-cbm-dashboard.service"; else def="$case_home/Library/LaunchAgents/org.dev-agent-config.cbm-dashboard.plist"; fi
+  if [ "$os" = Linux ]; then def="$case_home/.config/systemd/user/contextrivet-cbm-dashboard.service"; else def="$case_home/Library/LaunchAgents/org.contextrivet.cbm-dashboard.plist"; fi
   result="$(run install --port 19749 --dry-run)"
   grep -q 'WOULD_INSTALL' <<< "$result"
   [ ! -e "$def" ]
   result="$(run install --port 19749)"
   grep -q 'Not enabled or started' <<< "$result"
-  [ -f "$def" ] && [ -f "$case_home/state/dev-agent-config/tools/codebase-memory-mcp/dashboard-service.tsv" ]
+  [ -f "$def" ] && [ -f "$case_home/state/contextrivet/tools/codebase-memory-mcp/dashboard-service.tsv" ]
   grep -Fq "$case_home/.local/bin/codebase-memory-mcp" "$def"
   grep -Fq "$ROOT/scripts/tools/cbm-dashboard-runner.py" "$def"
   grep -q '19749' "$def"
@@ -111,7 +111,7 @@ PY
   run disable >/dev/null
   [ ! -e "$case_home/service.active" ]
   run remove >/dev/null
-  [ ! -e "$def" ] && [ ! -e "$case_home/state/dev-agent-config/tools/codebase-memory-mcp/dashboard-service.tsv" ]
+  [ ! -e "$def" ] && [ ! -e "$case_home/state/contextrivet/tools/codebase-memory-mcp/dashboard-service.tsv" ]
 }
 
 run_case Linux
@@ -120,19 +120,19 @@ run_case Darwin
 # An existing external service definition is never overwritten.
 home="$SANDBOX/conflict"
 fakebin="$SANDBOX/conflict-bin"
-mkdir -p "$fakebin" "$home/.local/bin" "$home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0" "$home/state/dev-agent-config/tools/codebase-memory-mcp" "$home/.config/systemd/user"
+mkdir -p "$fakebin" "$home/.local/bin" "$home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0" "$home/state/contextrivet/tools/codebase-memory-mcp" "$home/.config/systemd/user"
 cat > "$fakebin/uname" <<'SH'
 #!/bin/sh
 echo Linux
 SH
 chmod +x "$fakebin/uname"
-executable="$home/data/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp"
+executable="$home/data/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp"
 printf '#!/bin/sh\necho v0.11.0\n' > "$executable"; chmod +x "$executable"
 hash="$(shasum -a 256 "$executable" | awk '{print $1}')"
-printf 'ownership\tdev-agent-config\nversion\t0.11.0\nbinary_sha256\t%s\n' "$hash" > "$(dirname "$executable")/.manager-owned.tsv"
-printf '0.11.0\n' > "$home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
+printf 'ownership\tcontextrivet\nversion\t0.11.0\nbinary_sha256\t%s\n' "$hash" > "$(dirname "$executable")/.manager-owned.tsv"
+printf '0.11.0\n' > "$home/state/contextrivet/tools/codebase-memory-mcp/active-version"
 ln -s "$executable" "$home/.local/bin/codebase-memory-mcp"
-def="$home/.config/systemd/user/dev-agent-config-cbm-dashboard.service"
+def="$home/.config/systemd/user/contextrivet-cbm-dashboard.service"
 printf 'user content\n' > "$def"
 before="$(cksum "$def")"
 if HOME="$home" XDG_STATE_HOME="$home/state" XDG_DATA_HOME="$home/data" XDG_CONFIG_HOME="$home/.config" PATH="$fakebin:/usr/bin:/bin" "$ROOT/scripts/tools.sh" codebase-memory-mcp service install >/dev/null 2>&1; then

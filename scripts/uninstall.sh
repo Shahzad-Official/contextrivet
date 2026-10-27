@@ -36,14 +36,14 @@ remove_instructions() {
   [ "$type" = missing ] && return
   [ "$type" != symlink ] || fail "Refusing instruction symlink: $target"
   [ "$type" = file ] || fail "Unsupported instruction target: $target ($type)"
-  grep -qFx "$START" "$target" || return
+  { grep -qFx "$START" "$target" || grep -qFx "$LEGACY_START" "$target"; } || return
   say "$( [ "$DRY" -eq 1 ] && printf WOULD_REMOVE || printf REMOVED ) managed instructions: $target"
   if [ "$DRY" -eq 0 ]; then
     record_and_prepare "$target"
     tmp="$(mktemp)"
     strip_managed "$target" > "$tmp"
     if [ -s "$tmp" ]; then
-      write_tmp="$(mktemp "$(dirname "$target")/.dev-agent-config.XXXXXX")"
+      write_tmp="$(mktemp "$(dirname "$target")/.contextrivet.XXXXXX")"
       cat "$tmp" > "$write_tmp"
       chmod "$(stat_mode "$target")" "$write_tmp"
       mv "$write_tmp" "$target"

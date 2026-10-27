@@ -25,11 +25,11 @@ instruction_status() {
   local path="$1"
   if [ -L "$path" ]; then
     if [ "$path" = "$HOME/.agents/AGENTS.md" ] && [ "$(readlink "$path")" = "$HOME/AGENTS.md" ] &&
-      [ -f "$path" ] && grep -qF '# >>> dev-agent-config managed >>>' "$path" && grep -qF 'Preserve established architecture' "$path"; then printf healthy
+      [ -f "$path" ] && grep -qE '^# >>> (contextrivet|dev-agent-config) managed >>>$' "$path" && grep -qF 'Preserve established architecture' "$path"; then printf healthy
     else printf symlink; fi
   elif [ ! -e "$path" ]; then printf missing
   elif [ ! -f "$path" ]; then printf invalid-type
-  elif grep -qF '# >>> dev-agent-config managed >>>' "$path" && grep -qF 'Preserve established architecture' "$path"; then printf healthy
+  elif grep -qE '^# >>> (contextrivet|dev-agent-config) managed >>>$' "$path" && grep -qF 'Preserve established architecture' "$path"; then printf healthy
   else printf unmanaged
   fi
 }
@@ -264,7 +264,7 @@ if [ "$JSON" -eq 1 ]; then
     "$(json_string "$shared_code_intelligence")" "$shared_code_intelligence_status"
   printf '  "agents":['
 else
-  printf 'dev-agent-config verification\n'
+  printf 'contextrivet verification\n'
   printf 'Operating system: %s\n' "$OS"
   if [ -n "$VSCODE_CLI" ]; then printf 'VS Code CLI: %s (extension list: %s)\n' "$VSCODE_CLI" "$VSCODE_LIST_STATUS"; else printf 'VS Code CLI: not found\n'; fi
   printf '\nShared configuration\n'

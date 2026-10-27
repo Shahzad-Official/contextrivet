@@ -49,7 +49,7 @@ HOME="$home" "$ROOT/scripts/install.sh" --mode=replace >/dev/null
 assert_not_contains "$home/.claude/CLAUDE.md" 'Old private rule.'
 [ -L "$home/.claude/skills/ponytail" ]
 [ "$(stat -f '%Lp' "$home/.claude/CLAUDE.md" 2>/dev/null || stat -c '%a' "$home/.claude/CLAUDE.md")" = 600 ]
-backup="$(sed -n '1p' "$home/.agents/dev-agent-config/last-backup")"
+backup="$(sed -n '1p' "$home/.agents/contextrivet/last-backup")"
 [ -f "$backup/manifest.tsv" ]
 HOME="$home" "$ROOT/scripts/rollback.sh" "$backup" >/dev/null
 assert_contains "$home/.claude/CLAUDE.md" 'Old private rule.'
@@ -59,10 +59,10 @@ assert_contains "$home/.claude/CLAUDE.md" 'Old private rule.'
 home="$(new_home repeat)"
 HOME="$home" "$ROOT/scripts/install.sh" >/dev/null
 cp "$home/AGENTS.md" "$SANDBOX/first-agents.md"
-before="$(find "$home/.agents/dev-agent-config/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+before="$(find "$home/.agents/contextrivet/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 HOME="$home" "$ROOT/scripts/install.sh" >/dev/null
 cmp -s "$home/AGENTS.md" "$SANDBOX/first-agents.md"
-after="$(find "$home/.agents/dev-agent-config/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+after="$(find "$home/.agents/contextrivet/backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [ "$before" = "$after" ]
 
 # Instruction symlinks and symlinked parents are refused before any mutation.
@@ -89,7 +89,7 @@ HOME="$home" "$ROOT/scripts/install.sh" --mode=merge >/dev/null
 HOME="$home" "$ROOT/scripts/install.sh" --mode=replace >/dev/null
 [ "$(readlink "$home/.agents/skills/ponytail")" = "$ROOT/skills/ponytail" ]
 assert_contains "$SANDBOX/foreign-skill/SKILL.md" foreign
-backup="$(sed -n '1p' "$home/.agents/dev-agent-config/last-backup")"
+backup="$(sed -n '1p' "$home/.agents/contextrivet/last-backup")"
 HOME="$home" "$ROOT/scripts/rollback.sh" "$backup" >/dev/null
 [ "$(readlink "$home/.agents/skills/ponytail")" = "$SANDBOX/foreign-skill" ]
 
@@ -99,14 +99,14 @@ printf 'Keep this.\n' > "$home/AGENTS.md"
 HOME="$home" "$ROOT/scripts/install.sh" >/dev/null
 HOME="$home" "$ROOT/scripts/uninstall.sh" --apply >/dev/null
 assert_contains "$home/AGENTS.md" 'Keep this.'
-assert_not_contains "$home/AGENTS.md" '# >>> dev-agent-config managed >>>'
+assert_not_contains "$home/AGENTS.md" '# >>> contextrivet managed >>>'
 [ ! -L "$home/.agents/skills/ponytail" ]
 [ ! -e "$home/.gemini/config/skills/ponytail" ]
 [ ! -e "$home/.cline/data/settings/skills/ponytail" ]
 [ ! -e "$home/.agents/AGENTS.md" ]
-uninstall_backup="$(sed -n '1p' "$home/.agents/dev-agent-config/last-backup")"
+uninstall_backup="$(sed -n '1p' "$home/.agents/contextrivet/last-backup")"
 HOME="$home" "$ROOT/scripts/rollback.sh" "$uninstall_backup" >/dev/null
-assert_contains "$home/AGENTS.md" '# >>> dev-agent-config managed >>>'
+assert_contains "$home/AGENTS.md" '# >>> contextrivet managed >>>'
 
 # Benchmark preparation is isolated and leaves the source untouched.
 fixture="$SANDBOX/fixture"

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "stacks": {
+    "nestjs": [],
+    "nextjs": [],
+    "flutter": [
+      {
+        "name": "flutter-api-auth",
+        "description": "Implement or fix Flutter REST/API integration, authentication sessions, token refresh, request retries, cancellation, pagination, and cache isolation. Use for network/session behavior; preserve the project's HTTP client and auth provider.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-api-auth"
+      },
+      {
+        "name": "flutter-architecture",
+        "description": "Design or scaffold Flutter projects and features, layer boundaries, state management, and dependency injection. Use for architecture decisions; preserve existing project conventions unless a migration is requested.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-architecture"
+      },
+      {
+        "name": "flutter-async-state-safety",
+        "description": "Diagnose and fix Flutter/Dart race conditions, stale UI or caches, overlapping requests, optimistic updates, and lifecycle bugs in Bloc, Cubit, Riverpod, or widget state. Use when async ordering or state ownership is implicated, including during an audit-and-fix task.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-async-state-safety"
+      },
+      {
+        "name": "flutter-codebase-audit",
+        "description": "Review Flutter or Dart code for concrete security, correctness, async/state, performance, and maintainability issues. Use for audits and production-readiness reviews; implement fixes when the user also asks to fix them.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-codebase-audit"
+      },
+      {
+        "name": "flutter-firebase-workflows",
+        "description": "Implement or fix Flutter Firebase Auth, Firestore, Storage, and callable-function behavior, including rules boundaries, listener lifetimes, offline data, and concurrent writes. Apply only when the project actually uses Firebase.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-firebase-workflows"
+      },
+      {
+        "name": "flutter-release-readiness",
+        "description": "Review or prepare Flutter Android/iOS release configuration, flavors, permissions, signing references, and device verification. Use for release/build readiness work, not as a mandatory checklist for every feature edit.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-release-readiness"
+      },
+      {
+        "name": "flutter-tdd-workflow",
+        "description": "Implement Flutter or Dart behavior with red-green-refactor when the user explicitly requests TDD or the project requires test-first development. Includes deterministic async race and stale-state regressions without imposing TDD on unrelated tasks.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-tdd-workflow"
+      },
+      {
+        "name": "flutter-ui-quality",
+        "description": "Build or fix Flutter screen behavior, responsive layouts, forms, keyboard/focus handling, accessibility, localization, and loading/error/empty states. Use for UI work and concrete UI defects, reusing the app's design system.",
+        "github_url": "https://github.com/Shahzad-Official/flutter-skills/tree/7930b9420c45adf1b162255a33f2c4fc1d55356c/flutter-ui-quality"
+      }
+    ]
+  }
+}

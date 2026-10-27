@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-START='# >>> dev-agent-config managed >>>'
-END='# <<< dev-agent-config managed <<<'
+START='# >>> contextrivet managed >>>'
+END='# <<< contextrivet managed <<<'
+LEGACY_START='# >>> dev-agent-config managed >>>'
+LEGACY_END='# <<< dev-agent-config managed <<<'
 CHANGES=0
 BACKUP=''
 MANIFEST=''
@@ -37,7 +39,7 @@ validate_target() {
 
 init_transaction() {
   DRY="$2"
-  BACKUP="$HOME/.agents/dev-agent-config/backups/$(date +%Y%m%d-%H%M%S)-$$"
+  BACKUP="$HOME/.agents/contextrivet/backups/$(date +%Y%m%d-%H%M%S)-$$"
   MANIFEST="$BACKUP/manifest.tsv"
   say "Mode: $1"
   [ "$DRY" -eq 0 ] || say 'Dry run: no files will change'
@@ -63,9 +65,9 @@ record_and_prepare() {
 }
 
 strip_managed() {
-  awk -v start="$START" -v end="$END" '
-    $0 == start { inside=1; next }
-    $0 == end && inside { inside=0; next }
+  awk -v start="$START" -v end="$END" -v legacy_start="$LEGACY_START" -v legacy_end="$LEGACY_END" '
+    $0 == start || $0 == legacy_start { inside=1; next }
+    ($0 == end || $0 == legacy_end) && inside { inside=0; next }
     !inside { lines[++n]=$0 }
     END { while (n > 0 && lines[n] == "") n--; for (i=1; i<=n; i++) print lines[i] }
   ' "$1"
@@ -100,7 +102,7 @@ check_skill_target() {
 }
 
 check_state_target() {
-  local target="$HOME/.agents/dev-agent-config/last-backup" type
+  local target="$HOME/.agents/contextrivet/last-backup" type
   validate_target "$target"
   type="$(path_type "$target")"
   [ "$type" != symlink ] || fail "Refusing symlinked state file: $target"
@@ -121,7 +123,7 @@ install_instructions() {
   say "$( [ "$DRY" -eq 1 ] && printf WOULD_UPDATE || printf UPDATED ) instructions: $target"
   if [ "$DRY" -eq 0 ]; then
     record_and_prepare "$target"
-    write_tmp="$(mktemp "$(dirname "$target")/.dev-agent-config.XXXXXX")"
+    write_tmp="$(mktemp "$(dirname "$target")/.contextrivet.XXXXXX")"
     cat "$tmp" > "$write_tmp"
     if [ "$type" = file ]; then chmod "$(stat_mode "$target")" "$write_tmp"; else chmod 644 "$write_tmp"; fi
     mv "$write_tmp" "$target"
@@ -173,7 +175,7 @@ install_instruction_link() {
 }
 
 finish_transaction() {
-  local state="$HOME/.agents/dev-agent-config/last-backup"
+  local state="$HOME/.agents/contextrivet/last-backup"
   say "Changes: $CHANGES"
   if [ "$DRY" -eq 0 ] && [ "$CHANGES" -gt 0 ]; then
     printf '%s\n' "$BACKUP" > "$state"

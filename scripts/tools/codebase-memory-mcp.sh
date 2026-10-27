@@ -6,12 +6,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 SERVER_NAME=codebase-memory-mcp
 STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
-STATE_DIR="$STATE_HOME/dev-agent-config/tools/codebase-memory-mcp"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+MANAGER_ID=contextrivet
+if [ ! -e "$STATE_HOME/contextrivet/tools/codebase-memory-mcp" ] && [ ! -L "$STATE_HOME/contextrivet/tools/codebase-memory-mcp" ] &&
+   [ ! -e "$DATA_HOME/contextrivet/tools/codebase-memory-mcp" ] && [ ! -L "$DATA_HOME/contextrivet/tools/codebase-memory-mcp" ] &&
+   { [ -e "$STATE_HOME/dev-agent-config/tools/codebase-memory-mcp" ] || [ -L "$STATE_HOME/dev-agent-config/tools/codebase-memory-mcp" ] ||
+     [ -e "$DATA_HOME/dev-agent-config/tools/codebase-memory-mcp" ] || [ -L "$DATA_HOME/dev-agent-config/tools/codebase-memory-mcp" ]; }; then
+  MANAGER_ID=dev-agent-config
+fi
+STATE_DIR="$STATE_HOME/${MANAGER_ID}/tools/codebase-memory-mcp"
 ADOPTION="$STATE_DIR/adoption.tsv"
 MCP_OWNERSHIP="$STATE_DIR/codex-mcp.tsv"
 BACKUPS="$STATE_DIR/backups"
-DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
-MANAGED_DIR="$DATA_HOME/dev-agent-config/tools/codebase-memory-mcp"
+MANAGED_DIR="$DATA_HOME/${MANAGER_ID}/tools/codebase-memory-mcp"
 VERSIONS_DIR="$MANAGED_DIR/versions"
 ACTIVE_FILE="$STATE_DIR/active-version"
 TRANSACTION_FILE="$STATE_DIR/last-upgrade.tsv"
@@ -28,16 +35,16 @@ DASHBOARD_META="$DASHBOARD_DIR/process.tsv"
 RUNNER="$ROOT/scripts/tools/cbm-dashboard-runner.py"
 SERVICE_META="$STATE_DIR/dashboard-service.tsv"
 SYSTEMD_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
-SYSTEMD_UNIT="$SYSTEMD_DIR/dev-agent-config-cbm-dashboard.service"
+SYSTEMD_UNIT="$SYSTEMD_DIR/${MANAGER_ID}-cbm-dashboard.service"
 LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
-LAUNCH_AGENT="$LAUNCH_AGENT_DIR/org.dev-agent-config.cbm-dashboard.plist"
-SERVICE_LABEL=org.dev-agent-config.cbm-dashboard
+LAUNCH_AGENT="$LAUNCH_AGENT_DIR/org.${MANAGER_ID}.cbm-dashboard.plist"
+SERVICE_LABEL="org.${MANAGER_ID}.cbm-dashboard"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 say() { printf '%s\n' "$*"; }
 usage() {
   cat <<EOF
-Usage: dev-agent-config tools codebase-memory-mcp COMMAND [OPTIONS]
+Usage: contextrivet tools codebase-memory-mcp COMMAND [OPTIONS]
 
 Commands:
   status [--project PATH]        Report binary state or project index status
@@ -101,7 +108,7 @@ safe_state() {
   safe_user_path "$STATE_HOME"
   [ ! -L "$path" ] || die "Refusing symlink manager state root: $path"
   [ ! -e "$path" ] || [ -d "$path" ] || die "Manager state root is not a directory: $path"
-  for part in dev-agent-config tools codebase-memory-mcp; do
+  for part in "$MANAGER_ID" tools codebase-memory-mcp; do
     path="$path/$part"
     [ ! -L "$path" ] || die "Refusing symlink manager state path: $path"
     [ ! -e "$path" ] || [ -d "$path" ] || die "Manager state path is not a directory: $path"
@@ -112,7 +119,7 @@ prepare_state() {
   local path="$STATE_HOME" part
   safe_state
   [ -d "$path" ] || mkdir -p "$path"
-  for part in dev-agent-config tools codebase-memory-mcp; do
+  for part in "$MANAGER_ID" tools codebase-memory-mcp; do
     path="$path/$part"
     [ -d "$path" ] || mkdir "$path"
   done
@@ -182,7 +189,7 @@ download_file() {
 
 latest_stable_version() {
   local response tag
-  response="$(mktemp "${TMPDIR:-/tmp}/dev-agent-config-cbm-release.XXXXXX")" || die 'Could not create a private release metadata file'
+  response="$(mktemp "${TMPDIR:-/tmp}/contextrivet-cbm-release.XXXXXX")" || die 'Could not create a private release metadata file'
   [ ! -L "$response" ] || die 'Private release metadata path is a symlink'
   if ! download_file 'https://api.github.com/repos/DeusData/codebase-memory-mcp/releases/latest' "$response"; then
     rm -f "$response"
@@ -202,7 +209,7 @@ is_manager_version() {
   [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
   dir="$(version_dir "$version")"; meta="$(version_meta "$version")"; binary="$dir/codebase-memory-mcp"
   [ -d "$dir" ] && [ ! -L "$dir" ] && [ -f "$meta" ] && [ ! -L "$meta" ] && [ -f "$binary" ] && [ ! -L "$binary" ] && [ -x "$binary" ] || return 1
-  grep -qFx "ownership${TAB}dev-agent-config" "$meta" || return 1
+  grep -qFx "ownership${TAB}${MANAGER_ID}" "$meta" || return 1
   grep -qFx "version${TAB}$version" "$meta" || return 1
   expected="$(awk -F '\t' '$1 == "binary_sha256" {print $2}' "$meta")"
   [[ "$expected" =~ ^[a-fA-F0-9]{64}$ ]] || return 1
@@ -224,7 +231,7 @@ ensure_manager_roots() {
   safe_state
   safe_user_path "$DATA_HOME"
   safe_user_path "$BIN_DIR"
-  for dir in "$DATA_HOME" "$DATA_HOME/dev-agent-config" "$DATA_HOME/dev-agent-config/tools" "$MANAGED_DIR" "$VERSIONS_DIR" "$BIN_DIR"; do
+  for dir in "$DATA_HOME" "$DATA_HOME/${MANAGER_ID}" "$DATA_HOME/${MANAGER_ID}/tools" "$MANAGED_DIR" "$VERSIONS_DIR" "$BIN_DIR"; do
     [ ! -L "$dir" ] || die "Refusing symlink in manager installation path: $dir"
     [ ! -e "$dir" ] || [ -d "$dir" ] || die "Manager installation path is not a directory: $dir"
   done
@@ -333,7 +340,7 @@ install_version() {
   mkdir "$final"
   created_final=1
   mv "$stage/codebase-memory-mcp" "$final/codebase-memory-mcp"
-  (umask 077; printf 'ownership\tdev-agent-config\nversion\t%s\nplatform\t%s/%s\narchive\t%s\narchive_sha256\t%s\nbinary_sha256\t%s\nsource\t%s\nlicense\t%s\n' \
+  (umask 077; printf 'ownership\t%s\nversion\t%s\nplatform\t%s/%s\narchive\t%s\narchive_sha256\t%s\nbinary_sha256\t%s\nsource\t%s\nlicense\t%s\n' "$MANAGER_ID" \
     "$version" "$(uname -s)" "$(uname -m)" "$asset" "$expected" "$actual" "$SOURCE_URL" "$LICENSE" > "$final/.manager-owned.tsv")
   is_manager_version "$version" || die 'Installed binary failed manager ownership/integrity validation'
   version_output="$("$final/codebase-memory-mcp" --version 2>&1)" || die 'Final-destination CBM binary failed --version'
@@ -375,7 +382,7 @@ stage_cleanup() {
     if [ "${created_final:-0}" -eq 1 ] && [ -d "$final" ] && [ ! -L "$final" ]; then
       local recorded
       if [ -f "$final/.manager-owned.tsv" ] && [ ! -L "$final/.manager-owned.tsv" ] &&
-        grep -qFx $'ownership\tdev-agent-config' "$final/.manager-owned.tsv" &&
+        grep -qFx "ownership${TAB}${MANAGER_ID}" "$final/.manager-owned.tsv" &&
         grep -qFx $'version\t'"$(basename "$final")" "$final/.manager-owned.tsv" &&
         [ -f "$final/codebase-memory-mcp" ] && [ ! -L "$final/codebase-memory-mcp" ]; then
         recorded="$(awk -F '\t' '$1=="binary_sha256"{print $2}' "$final/.manager-owned.tsv")"
@@ -472,10 +479,10 @@ mcp_get() {
 }
 
 config_entry_snapshot() {
-  awk '
-    /^# >>> dev-agent-config CBM >>>$/ {inside=1}
+  awk -v start="# >>> $MANAGER_ID CBM >>>" -v end="# <<< $MANAGER_ID CBM <<<" '
+    $0 == start {inside=1}
     inside {print}
-    /^# <<< dev-agent-config CBM <<<$/ {exit}
+    $0 == end {exit}
   ' "$CODEX_CONFIG" | cksum | awk '{print $1 ":" $2}'
 }
 
@@ -655,18 +662,18 @@ write_codex_fallback_entry() {
   if [ -f "$CODEX_CONFIG" ]; then cp -p "$CODEX_CONFIG" "$temp"; else : > "$temp"; chmod 600 "$temp"; fi
   {
     [ ! -s "$temp" ] || printf '\n'
-    printf '# >>> dev-agent-config CBM >>>\n[mcp_servers.codebase-memory-mcp]\ncommand = %s\nargs = []\n%s\n# <<< dev-agent-config CBM <<<\n' "$escaped" "$env_vars"
+    printf '# >>> %s CBM >>>\n[mcp_servers.codebase-memory-mcp]\ncommand = %s\nargs = []\n%s\n# <<< %s CBM <<<\n' "$MANAGER_ID" "$escaped" "$env_vars" "$MANAGER_ID"
   } >> "$temp"
   mv "$temp" "$CODEX_CONFIG"
 }
 
 remove_codex_fallback_entry() {
-  python3 - "$CODEX_CONFIG" <<'PY'
+  python3 - "$CODEX_CONFIG" "$MANAGER_ID" <<'PY'
 import pathlib, sys
 p = pathlib.Path(sys.argv[1])
 b = p.read_bytes()
-start = b"# >>> dev-agent-config CBM >>>\n"
-end = b"# <<< dev-agent-config CBM <<<\n"
+start = ("# >>> " + sys.argv[2] + " CBM >>>\n").encode()
+end = ("# <<< " + sys.argv[2] + " CBM <<<\n").encode()
 if b.count(start) != 1 or b.count(end) != 1:
     raise SystemExit("managed Codex block markers are missing or ambiguous")
 a = b.index(start)
@@ -1085,7 +1092,7 @@ raise SystemExit(0)' "$json"
 project_owned() {
   local project="$1" file="$2"
   [ -f "$file" ] && [ ! -L "$file" ] || return 1
-  grep -qFx $'ownership\tdev-agent-config' "$file" &&
+  grep -qFx "ownership${TAB}${MANAGER_ID}" "$file" &&
     grep -qFx $'project_path\t'"$project" "$file"
 }
 
@@ -1101,7 +1108,7 @@ record_project_owner() {
     return
   fi
   tmp="$file.tmp.$$"
-  (umask 077; printf 'ownership\tdev-agent-config\nproject_path\t%s\nproject_name\t%s\nindexed_with\t%s\n' "$project" "$name" "$version" > "$tmp")
+  (umask 077; printf 'ownership\t%s\nproject_path\t%s\nproject_name\t%s\nindexed_with\t%s\n' "$MANAGER_ID" "$project" "$name" "$version" > "$tmp")
   mv "$tmp" "$file"
 }
 
@@ -1370,7 +1377,7 @@ dashboard_status() {
     say 'Dashboard: stopped (no manager-owned process record)'; return
   fi
   [ -f "$DASHBOARD_META" ] && [ ! -L "$DASHBOARD_META" ] || die "Unexpected dashboard process metadata: $DASHBOARD_META"
-  grep -qFx $'ownership\tdev-agent-config' "$DASHBOARD_META" || die 'Dashboard process record has unexpected ownership'
+  grep -qFx "ownership${TAB}${MANAGER_ID}" "$DASHBOARD_META" || die 'Dashboard process record has unexpected ownership'
   pid="$(dashboard_pid)"; nonce="$(dashboard_nonce)"
   port="$(awk -F '\t' '$1=="port"{print $2}' "$DASHBOARD_META")"
   project="$(awk -F '\t' '$1=="project_path"{print $2}' "$DASHBOARD_META")"
@@ -1479,19 +1486,19 @@ dashboard_start() {
     die "Dashboard process identity could not be verified. Log: $log"
   fi
   local tmp="$DASHBOARD_META.tmp.$$"
-  (umask 077; printf 'ownership\tdev-agent-config\npid\t%s\nnonce\t%s\nbinary\t%s\nport\t%s\nproject_path\t%s\nproject_name\t%s\nlog\t%s\n' \
+  (umask 077; printf 'ownership\t%s\npid\t%s\nnonce\t%s\nbinary\t%s\nport\t%s\nproject_path\t%s\nproject_name\t%s\nlog\t%s\n' "$MANAGER_ID" \
     "$pid" "$nonce" "$binary" "$port" "$project" "$name" "$log" > "$tmp")
   mv "$tmp" "$DASHBOARD_META"
   say "STARTED: CBM dashboard for $project"
   say "URL: $url/?project=$encoded"
   say "HTTP readiness: healthy"
-  say "Stop with: dev-agent-config tools codebase-memory-mcp dashboard stop"
+  say "Stop with: contextrivet tools codebase-memory-mcp dashboard stop"
 }
 
 dashboard_stop() {
   local dry="$1" pid nonce port binary kind
   if [ ! -e "$DASHBOARD_META" ] && [ ! -L "$DASHBOARD_META" ]; then say 'UNCHANGED: dashboard is not running'; return; fi
-  [ -f "$DASHBOARD_META" ] && [ ! -L "$DASHBOARD_META" ] && grep -qFx $'ownership\tdev-agent-config' "$DASHBOARD_META" || die 'Refusing unexpected dashboard process record'
+  [ -f "$DASHBOARD_META" ] && [ ! -L "$DASHBOARD_META" ] && grep -qFx "ownership${TAB}${MANAGER_ID}" "$DASHBOARD_META" || die 'Refusing unexpected dashboard process record'
   pid="$(dashboard_pid)"; nonce="$(dashboard_nonce)"
   if ! dashboard_owned_process "$pid" "$nonce"; then
     local state=0
@@ -1551,7 +1558,7 @@ service_owned() {
   local path="$1" expected actual recorded_path
   safe_state
   [ -f "$SERVICE_META" ] && [ ! -L "$SERVICE_META" ] && [ -f "$path" ] && [ ! -L "$path" ] || return 1
-  grep -qFx $'ownership\tdev-agent-config' "$SERVICE_META" || return 1
+  grep -qFx "ownership${TAB}${MANAGER_ID}" "$SERVICE_META" || return 1
   recorded_path="$(awk -F '\t' '$1=="path"{print $2}' "$SERVICE_META")"
   [ "$recorded_path" = "$path" ] || return 1
   expected="$(awk -F '\t' '$1=="sha256"{print $2}' "$SERVICE_META")"
@@ -1583,8 +1590,8 @@ path,*args=sys.argv[1:]
 def quote(s):
     if any(ord(c)<32 for c in s): raise SystemExit('service argument contains a control character')
     return '"'+s.replace('\\','\\\\').replace('"','\\"').replace('%','%%')+'"'
-lines=['# Managed by dev-agent-config; do not edit',
-       '[Unit]','Description=dev-agent-config local CBM dashboard','After=default.target',
+lines=['# Managed by contextrivet; do not edit',
+       '[Unit]','Description=contextrivet local CBM dashboard','After=default.target',
        '[Service]','Type=simple','ExecStart='+' '.join(map(quote,args)),
        'Restart=on-failure','RestartSec=3','NoNewPrivileges=true',
        '[Install]','WantedBy=default.target','']
@@ -1633,7 +1640,7 @@ service_install() {
   service_render "$tmp" "$port" "$binary" "$py" "$log" "$nonce" || { rm -f "$tmp"; die 'Could not generate service definition'; }
   chmod 600 "$tmp"; mv "$tmp" "$path"
   hash="$(service_definition_hash "$path")"
-  (umask 077; printf 'ownership\tdev-agent-config\nos\t%s\npath\t%s\nsha256\t%s\nport\t%s\n' "$(service_platform)" "$path" "$hash" "$port" > "$SERVICE_META.tmp.$$")
+  (umask 077; printf 'ownership\t%s\nos\t%s\npath\t%s\nsha256\t%s\nport\t%s\n' "$MANAGER_ID" "$(service_platform)" "$path" "$hash" "$port" > "$SERVICE_META.tmp.$$")
   mv "$SERVICE_META.tmp.$$" "$SERVICE_META" || { rm -f "$path"; die 'Could not record service ownership'; }
   say "INSTALLED: manager-owned user service definition: $path"
   say 'Not enabled or started; run service enable explicitly.'
@@ -1644,10 +1651,10 @@ service_manager_state() {
   os="$(service_platform)"
   if [ "$os" = linux ]; then
     command -v systemctl >/dev/null 2>&1 || die 'systemctl is unavailable; user service operations are unsupported in this environment'
-    output="$(systemctl --user show dev-agent-config-cbm-dashboard.service --property=FragmentPath --value 2>/dev/null || true)"
+    output="$(systemctl --user show "${MANAGER_ID}-cbm-dashboard.service" --property=FragmentPath --value 2>/dev/null || true)"
     [ -z "$output" ] || [ "$output" = "$path" ] || die "A different systemd unit owns this service name: $output"
-    if systemctl --user is-active --quiet dev-agent-config-cbm-dashboard.service 2>/dev/null; then printf active
-    elif systemctl --user is-enabled --quiet dev-agent-config-cbm-dashboard.service 2>/dev/null; then printf enabled-inactive
+    if systemctl --user is-active --quiet "${MANAGER_ID}-cbm-dashboard.service" 2>/dev/null; then printf active
+    elif systemctl --user is-enabled --quiet "${MANAGER_ID}-cbm-dashboard.service" 2>/dev/null; then printf enabled-inactive
     elif [ -n "$output" ]; then printf inactive
     else printf absent; fi
   else
@@ -1691,7 +1698,7 @@ service_enable() {
   [ "$dry" -eq 0 ] || { say "WOULD_ENABLE manager-owned dashboard service ($path)"; return; }
   if [ "$(service_platform)" = linux ]; then
     systemctl --user daemon-reload || die 'systemd user manager is unavailable; log in to a user session and retry'
-    systemctl --user enable --now dev-agent-config-cbm-dashboard.service || die 'systemd failed to enable/start the manager-owned service'
+    systemctl --user enable --now "${MANAGER_ID}-cbm-dashboard.service" || die 'systemd failed to enable/start the manager-owned service'
   else
     launchctl enable "gui/$(id -u)/$SERVICE_LABEL" || die 'launchd could not enable the manager-owned LaunchAgent'
     launchctl bootstrap "gui/$(id -u)" "$path" || die 'launchd failed to bootstrap the manager-owned LaunchAgent'
@@ -1708,7 +1715,7 @@ service_disable() {
   case "$state" in active|loaded|enabled-inactive) ;; *) say 'UNCHANGED: manager-owned dashboard service is already disabled or stopped'; return ;; esac
   [ "$dry" -eq 0 ] || { say 'WOULD_DISABLE/STOP manager-owned dashboard service'; return; }
   if [ "$(service_platform)" = linux ]; then
-    systemctl --user disable --now dev-agent-config-cbm-dashboard.service || die 'systemd failed to disable/stop the manager-owned service'
+    systemctl --user disable --now "${MANAGER_ID}-cbm-dashboard.service" || die 'systemd failed to disable/stop the manager-owned service'
     systemctl --user daemon-reload || die 'systemd daemon-reload failed after disable'
   else
     if [ "$state" = active ] || [ "$state" = loaded ]; then launchctl bootout "gui/$(id -u)" "$path" || die 'launchd failed to stop the verified manager-owned LaunchAgent'; fi

@@ -145,14 +145,14 @@ home="$(new_home existing)"; codex_home="$home/codex"
 original="$(cksum "$home/.local/share/codebase-memory-mcp/codebase-memory-mcp")"
 dry="$(run_cbm "$home" "$codex_home" adopt --dry-run)"
 case "$dry" in *'WOULD_RECORD external CBM installation'*) ;; *) exit 1 ;; esac
-[ ! -e "$home/state/dev-agent-config/tools/codebase-memory-mcp/adoption.tsv" ]
+[ ! -e "$home/state/contextrivet/tools/codebase-memory-mcp/adoption.tsv" ]
 result="$(run_cbm "$home" "$codex_home" verify)"
 grep -q 'Version: codebase-memory-mcp v0.11.0' <<< "$result"
 run_cbm "$home" "$codex_home" adopt >/dev/null
 result="$(run_cbm "$home" "$codex_home" adopt)"
 grep -q 'UNCHANGED' <<< "$result"
 [ "$original" = "$(cksum "$home/.local/share/codebase-memory-mcp/codebase-memory-mcp")" ]
-grep -q $'^ownership\texternal$' "$home/state/dev-agent-config/tools/codebase-memory-mcp/adoption.tsv"
+grep -q $'^ownership\texternal$' "$home/state/contextrivet/tools/codebase-memory-mcp/adoption.tsv"
 
 # Missing and broken binaries are reported, never followed or repaired.
 missing="$SANDBOX/missing"; mkdir -p "$missing/.local/bin" "$missing/codex"
@@ -176,7 +176,7 @@ result="$(run_cbm "$home" "$codex_home" mcp status codex)"; grep -q 'externally 
 result="$(run_cbm "$home" "$codex_home" mcp enable codex --dry-run)"; grep -q 'EXTERNAL' <<< "$result"
 result="$(run_cbm "$home" "$codex_home" mcp enable codex)"; grep -q 'EXTERNAL' <<< "$result"
 [ "$before" = "$(cksum "$codex_home/config.toml")" ]
-[ ! -e "$home/state/dev-agent-config/tools/codebase-memory-mcp/codex-mcp.tsv" ]
+[ ! -e "$home/state/contextrivet/tools/codebase-memory-mcp/codex-mcp.tsv" ]
 
 # MCP changes respect CODEX_HOME, preserve unrelated TOML, back up, and are idempotent.
 home="$(new_home mcp-owned)"; codex_home="$home/custom-codex-home"
@@ -194,7 +194,7 @@ TOML
 before="$(cksum "$codex_home/config.toml")"
 run_cbm "$home" "$codex_home" mcp enable codex --dry-run >/dev/null
 [ "$before" = "$(cksum "$codex_home/config.toml")" ]
-[ ! -e "$home/state/dev-agent-config/tools/codebase-memory-mcp/backups" ]
+[ ! -e "$home/state/contextrivet/tools/codebase-memory-mcp/backups" ]
 [ ! -e "$home/state" ]
 run_cbm "$home" "$codex_home" mcp enable codex >/dev/null
 result="$(run_cbm "$home" "$codex_home" mcp enable codex)"; grep -q 'UNCHANGED' <<< "$result"
@@ -204,13 +204,13 @@ result="$(run_cbm "$home" "$codex_home" mcp status codex)"; grep -q 'manager-own
 before="$(cksum "$codex_home/config.toml")"
 run_cbm "$home" "$codex_home" mcp disable codex --dry-run >/dev/null
 [ "$before" = "$(cksum "$codex_home/config.toml")" ]
-[ -f "$home/state/dev-agent-config/tools/codebase-memory-mcp/codex-mcp.tsv" ]
+[ -f "$home/state/contextrivet/tools/codebase-memory-mcp/codex-mcp.tsv" ]
 run_cbm "$home" "$codex_home" mcp disable codex >/dev/null
 result="$(run_cbm "$home" "$codex_home" mcp disable codex)"; grep -q 'not registered' <<< "$result"
 grep -q 'model = "preserve-me"' "$codex_home/config.toml"
 grep -q 'command = "other-server"' "$codex_home/config.toml"
 ! grep -q 'codebase-memory-mcp' "$codex_home/config.toml"
-find "$home/state/dev-agent-config/tools/codebase-memory-mcp/backups" -name config.toml | grep -q .
+find "$home/state/contextrivet/tools/codebase-memory-mcp/backups" -name config.toml | grep -q .
 run_cbm "$home" "$codex_home" mcp enable codex >/dev/null
 run_cbm "$home" "$codex_home" mcp disable codex >/dev/null
 
@@ -238,27 +238,27 @@ if run_cbm "$home" "$codex_home" mcp enable codex >/dev/null 2>&1; then echo 'Sy
 install_home="$SANDBOX/manager install"; mkdir -p "$install_home/.local/share" "$install_home/.local/bin"
 dry="$(run_manager "$install_home" install --dry-run)"
 case "$dry" in *'WOULD_INSTALL CBM 0.11.0'*) ;; *) echo "$dry" >&2; exit 1 ;; esac
-[ ! -e "$install_home/state" ] && [ ! -e "$install_home/.local/share/dev-agent-config" ]
+[ ! -e "$install_home/state" ] && [ ! -e "$install_home/.local/share/contextrivet" ]
 run_manager "$install_home" install >/dev/null
-grep -q '^0.11.0$' "$install_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
-[ "$(readlink "$install_home/.local/bin/codebase-memory-mcp")" = "$install_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
+grep -q '^0.11.0$' "$install_home/state/contextrivet/tools/codebase-memory-mcp/active-version"
+[ "$(readlink "$install_home/.local/bin/codebase-memory-mcp")" = "$install_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
 result="$(run_manager "$install_home" install)"; grep -q 'UNCHANGED' <<< "$result"
 result="$(run_manager "$install_home" verify)"; grep -q 'v0.11.0' <<< "$result"
 result="$(run_manager "$install_home" check-update)"; grep -q 'Available stable: 0.12.0' <<< "$result"
 result="$(run_manager "$install_home" upgrade --dry-run)"; grep -q 'WOULD_UPGRADE: 0.11.0 -> 0.12.0' <<< "$result"
 run_manager "$install_home" upgrade >/dev/null
-grep -q '^0.12.0$' "$install_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
+grep -q '^0.12.0$' "$install_home/state/contextrivet/tools/codebase-memory-mcp/active-version"
 result="$(run_manager "$install_home" install)"; grep -q 'UNCHANGED: manager-owned CBM 0.12.0' <<< "$result"
-grep -q '^0.12.0$' "$install_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
-[ -x "$install_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
+grep -q '^0.12.0$' "$install_home/state/contextrivet/tools/codebase-memory-mcp/active-version"
+[ -x "$install_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
 run_manager "$install_home" rollback >/dev/null
-grep -q '^0.11.0$' "$install_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
+grep -q '^0.11.0$' "$install_home/state/contextrivet/tools/codebase-memory-mcp/active-version"
 run_manager "$install_home" rollback >/dev/null
-grep -q '^0.12.0$' "$install_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
+grep -q '^0.12.0$' "$install_home/state/contextrivet/tools/codebase-memory-mcp/active-version"
 run_manager "$install_home" remove --dry-run >/dev/null
 [ -L "$install_home/.local/bin/codebase-memory-mcp" ]
 run_manager "$install_home" remove >/dev/null
-[ ! -e "$install_home/.local/bin/codebase-memory-mcp" ] && [ ! -e "$install_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions" ]
+[ ! -e "$install_home/.local/bin/codebase-memory-mcp" ] && [ ! -e "$install_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions" ]
 
 # Agent integrations use the stable manager link, so an explicit upgrade
 # transparently selects the active version without rewriting user MCP config.
@@ -270,7 +270,7 @@ HOME="$managed_mcp_home" XDG_STATE_HOME="$managed_mcp_home/state" XDG_DATA_HOME=
   "$ROOT/scripts/tools.sh" codebase-memory-mcp mcp enable codex >/dev/null
 [ "$(cat "$codex_home/.cbm-test-entry")" = "$managed_mcp_home/.local/bin/codebase-memory-mcp" ]
 run_manager "$managed_mcp_home" upgrade >/dev/null
-[ "$(readlink "$managed_mcp_home/.local/bin/codebase-memory-mcp")" = "$managed_mcp_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.12.0/codebase-memory-mcp" ]
+[ "$(readlink "$managed_mcp_home/.local/bin/codebase-memory-mcp")" = "$managed_mcp_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.12.0/codebase-memory-mcp" ]
 result="$(HOME="$managed_mcp_home" XDG_STATE_HOME="$managed_mcp_home/state" XDG_DATA_HOME="$managed_mcp_home/.local/share" CODEX_HOME="$codex_home" PATH="$fakebin:/usr/bin:/bin" "$ROOT/scripts/tools.sh" codebase-memory-mcp mcp status codex)"
 grep -q 'manager-owned, unchanged' <<< "$result"
 HOME="$managed_mcp_home" XDG_STATE_HOME="$managed_mcp_home/state" CODEX_HOME="$codex_home" PATH="$fakebin:/usr/bin:/bin" \
@@ -283,9 +283,9 @@ run_manager "$failed_upgrade_home" install >/dev/null
 cp "$release_root/0.12.0/checksums.txt" "$SANDBOX/upgrade-checksums.saved"
 printf '%064d  codebase-memory-mcp-linux-amd64-portable.tar.gz\n' 0 > "$release_root/0.12.0/checksums.txt"
 if run_manager "$failed_upgrade_home" upgrade >/dev/null 2>&1; then echo 'Upgrade accepted an invalid checksum' >&2; exit 1; fi
-grep -q '^0.11.0$' "$failed_upgrade_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version"
-[ "$(readlink "$failed_upgrade_home/.local/bin/codebase-memory-mcp")" = "$failed_upgrade_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
-[ ! -e "$failed_upgrade_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.12.0" ]
+grep -q '^0.11.0$' "$failed_upgrade_home/state/contextrivet/tools/codebase-memory-mcp/active-version"
+[ "$(readlink "$failed_upgrade_home/.local/bin/codebase-memory-mcp")" = "$failed_upgrade_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
+[ ! -e "$failed_upgrade_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.12.0" ]
 mv "$SANDBOX/upgrade-checksums.saved" "$release_root/0.12.0/checksums.txt"
 
 # Failure to commit active-version after the executable link is switched must
@@ -294,18 +294,18 @@ interrupted_home="$SANDBOX/interrupted-upgrade"; mkdir -p "$interrupted_home/.lo
 run_manager "$interrupted_home" install >/dev/null
 if HOME="$interrupted_home" XDG_STATE_HOME="$interrupted_home/state" XDG_DATA_HOME="$interrupted_home/.local/share" \
   CBM_TEST_RELEASES="$release_root" CBM_TEST_LOG="$SANDBOX/downloads.log" \
-  CBM_ACTIVE_FILE="$interrupted_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version" \
+  CBM_ACTIVE_FILE="$interrupted_home/state/contextrivet/tools/codebase-memory-mcp/active-version" \
   CBM_FAIL_MARKER="$SANDBOX/fail-active-write" CBM_FAIL_ACTIVE_WRITE=1 PATH="$fakebin:/usr/bin:/bin" \
   "$ROOT/scripts/tools.sh" codebase-memory-mcp upgrade >/dev/null 2>&1; then
   echo 'Interrupted activation unexpectedly succeeded' >&2; exit 1
 fi
-[ "$(cat "$interrupted_home/state/dev-agent-config/tools/codebase-memory-mcp/active-version")" = 0.11.0 ]
-[ "$(readlink "$interrupted_home/.local/bin/codebase-memory-mcp")" = "$interrupted_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
-[ ! -e "$interrupted_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.12.0" ]
+[ "$(cat "$interrupted_home/state/contextrivet/tools/codebase-memory-mcp/active-version")" = 0.11.0 ]
+[ "$(readlink "$interrupted_home/.local/bin/codebase-memory-mcp")" = "$interrupted_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" ]
+[ ! -e "$interrupted_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.12.0" ]
 
 modified_home="$SANDBOX/modified-manager"; mkdir -p "$modified_home/.local/share" "$modified_home/.local/bin"
 run_manager "$modified_home" install >/dev/null
-printf 'changed\n' >> "$modified_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp"
+printf 'changed\n' >> "$modified_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp"
 if run_manager "$modified_home" remove >/dev/null 2>&1; then echo 'Modified manager binary was removed' >&2; exit 1; fi
 [ -L "$modified_home/.local/bin/codebase-memory-mcp" ]
 
@@ -316,7 +316,7 @@ cp "$bad_checksum" "$SANDBOX/checksums.saved"
 printf '%064d  codebase-memory-mcp-darwin-arm64.tar.gz\n' 0 > "$bad_checksum"
 if run_manager "$bad_home" install >/dev/null 2>&1; then echo 'Bad release checksum accepted' >&2; exit 1; fi
 [ ! -e "$bad_home/.local/bin/codebase-memory-mcp" ]
-[ ! -e "$bad_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0" ]
+[ ! -e "$bad_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.11.0" ]
 mv "$SANDBOX/checksums.saved" "$bad_checksum"
 
 # Existing unowned executable and broken/foreign symlink conflicts are never replaced.
@@ -356,7 +356,7 @@ HOME="$fallback_home" XDG_STATE_HOME="$fallback_home/state" CODEX_HOME="$fallbac
 [ "$before" = "$(cksum "$fallback_home/codex/config.toml")" ]
 HOME="$fallback_home" XDG_STATE_HOME="$fallback_home/state" CODEX_HOME="$fallback_home/codex" PATH="/usr/bin:/bin" \
   "$ROOT/scripts/tools.sh" codebase-memory-mcp mcp enable codex >/dev/null
-grep -q 'dev-agent-config CBM' "$fallback_home/codex/config.toml"
+grep -q 'contextrivet CBM' "$fallback_home/codex/config.toml"
 grep -q 'model = "preserve-this"' "$fallback_home/codex/config.toml"
 HOME="$fallback_home" XDG_STATE_HOME="$fallback_home/state" CODEX_HOME="$fallback_home/codex" PATH="/usr/bin:/bin" \
   "$ROOT/scripts/tools.sh" codebase-memory-mcp mcp disable codex >/dev/null
@@ -409,7 +409,7 @@ antigravity_run mcp enable antigravity --dry-run >/dev/null
 antigravity_run mcp enable antigravity >/dev/null
 result="$(antigravity_run mcp enable antigravity)"; grep -q 'UNCHANGED' <<< "$result"
 result="$(antigravity_run mcp status antigravity)"; grep -q 'manager-owned, unchanged' <<< "$result"
-python3 - "$antigravity_home/.gemini/config/mcp_config.json" "$antigravity_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" <<'PY'
+python3 - "$antigravity_home/.gemini/config/mcp_config.json" "$antigravity_home/.local/share/contextrivet/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp" <<'PY'
 import json,pathlib,sys
 d=json.load(open(sys.argv[1])); e=d['mcpServers']['codebase-memory-mcp']
 assert pathlib.Path(e['command']).resolve()==pathlib.Path(sys.argv[2]).resolve() and e['args']==[] and d['theme']=='preserve' and 'other' in d['mcpServers']
@@ -427,11 +427,34 @@ import json,sys
 p=sys.argv[1]; d=json.load(open(p)); d['mcpServers']['codebase-memory-mcp']['command']='/changed'; json.dump(d,open(p,'w'))
 PY
 if antigravity_run mcp disable antigravity >/dev/null 2>&1; then echo 'Modified Antigravity entry removed' >&2; exit 1; fi
-rm "$antigravity_home/state/dev-agent-config/tools/codebase-memory-mcp/antigravity-mcp.tsv"
+rm "$antigravity_home/state/contextrivet/tools/codebase-memory-mcp/antigravity-mcp.tsv"
 before="$(cksum "$antigravity_home/.gemini/config/mcp_config.json")"
 result="$(antigravity_run mcp enable antigravity)"; grep -q EXTERNAL <<< "$result"
 [ "$before" = "$(cksum "$antigravity_home/.gemini/config/mcp_config.json")" ]
 result="$(antigravity_run mcp status antigravity)"; grep -q 'externally managed' <<< "$result"
+
+# Existing old-name installations retain ownership, binary links, and safe removal.
+legacy_home="$SANDBOX/legacy-manager"
+mkdir -p "$legacy_home/.local/share"
+run_manager "$legacy_home" install >/dev/null
+mv "$legacy_home/.local/share/contextrivet" "$legacy_home/.local/share/dev-agent-config"
+mv "$legacy_home/state/contextrivet" "$legacy_home/state/dev-agent-config"
+legacy_binary="$legacy_home/.local/share/dev-agent-config/tools/codebase-memory-mcp/versions/0.11.0/codebase-memory-mcp"
+legacy_meta="$(dirname "$legacy_binary")/.manager-owned.tsv"
+sed 's/contextrivet/dev-agent-config/g' "$legacy_meta" > "$legacy_meta.next"
+mv "$legacy_meta.next" "$legacy_meta"
+rm "$legacy_home/.local/bin/codebase-memory-mcp"
+ln -s "$legacy_binary" "$legacy_home/.local/bin/codebase-memory-mcp"
+result="$(run_manager "$legacy_home" verify)"
+grep -q 'CBM executable is healthy' <<< "$result"
+result="$(run_manager "$legacy_home" status)"
+grep -q 'manager-owned' <<< "$result"
+run_manager "$legacy_home" remove --dry-run >/dev/null
+[ -x "$legacy_binary" ]
+run_manager "$legacy_home" remove >/dev/null
+[ ! -e "$legacy_binary" ]
+[ ! -e "$legacy_home/.local/share/contextrivet" ]
+[ ! -e "$legacy_home/state/contextrivet" ]
 
 # Graphify remains independently dispatched and its fixture suite is exercised separately.
 "$ROOT/scripts/tools.sh" codebase-memory-mcp --help >/dev/null
