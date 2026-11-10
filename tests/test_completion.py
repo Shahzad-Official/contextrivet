@@ -65,9 +65,13 @@ _contextrivet
     def test_command_and_nested_subcommand_context(self):
         cases = [
             (("pro",), {"project"}),
-            (("project", ""), {"init", "status", "skills", "backups", "restore", "uninstall", "--help", "-h"}),
+            (("project", ""), {"init", "status", "skills", "backups", "restore", "uninstall", "repair", "baseline", "automate", "--help", "-h"}),
             (("project", "skills", ""), {"install", "--stack", "--help", "-h"}),
             (("project", "skills", "install", "--"), {"--project", "--stack", "--names", "--all", "--dry-run", "--yes", "--help"}),
+            (("health", ""), {"--project", "--json", "--project-only", "--global-only", "--help", "-h"}),
+            (("project", "repair", ""), {"--project", "--apply", "--dry-run", "--help", "-h"}),
+            (("project", "baseline", ""), {"--project", "--note", "--yes", "--dry-run", "--help", "-h"}),
+            (("project", "automate", ""), {"--project", "--hook", "--ci", "--local", "--apply", "--dry-run", "--help", "-h"}),
             (("tools", ""), {"graphify", "codebase-memory-mcp", "--help", "-h"}),
             (("completion", ""), {"bash", "zsh", "--help", "-h"}),
             (("tools", "codebase-memory-mcp", "mcp", ""), {"status", "enable", "disable", "--help", "-h"}),
@@ -82,7 +86,7 @@ _contextrivet
 
     def test_flags_and_enum_values_follow_the_selected_command(self):
         for shell in self.shells:
-            self.assertEqual(set(self.candidates(shell, "project", "init", "--stack", "")), {"nestjs", "nextjs", "flutter"})
+            self.assertEqual(set(self.candidates(shell, "project", "init", "--stack", "")), {"none", "nestjs", "nextjs", "flutter", "auto"})
             self.assertEqual(self.candidates(shell, "project", "init", "--stack", "nes"), ["nestjs"])
             self.assertEqual(set(self.candidates(shell, "project", "init", "--skills", "")), {"none", "ponytail"})
             self.assertEqual(self.candidates(shell, "project", "restore", "--b"), ["--backup"])

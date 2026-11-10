@@ -21,12 +21,16 @@ help() {
   else
     printf '  %scontextrivet — project context%s\n' "$HELP_BOLD$HELP_CYAN" "$HELP_RESET"
   fi
-  printf '\n    %sNestJS%s  /  %sNext.js%s  /  %sFlutter%s\n' "$HELP_GREEN" "$HELP_RESET" "$HELP_CYAN" "$HELP_RESET" "$HELP_PURPLE" "$HELP_RESET"
+  printf '\n    Stack-neutral  /  %sNestJS%s  /  %sNext.js%s  /  %sFlutter%s\n' "$HELP_GREEN" "$HELP_RESET" "$HELP_CYAN" "$HELP_RESET" "$HELP_PURPLE" "$HELP_RESET"
   help_section 'USAGE'
   printf '    %scontextrivet <command> [options]%s\n' "$HELP_CYAN" "$HELP_RESET"
   help_section 'PROJECT CONTEXT'
   help_row 'project init [options]' 'Set up rules and architecture'
   help_row 'project status' 'Check project readiness'
+  help_row 'health [--json] [--project-only]' 'Report global and project health'
+  help_row 'project repair [--apply]' 'Restore missing owned scaffold assets'
+  help_row 'project baseline --note <path>' 'Record source bytes for drift checks'
+  help_row 'project automate --hook|--ci' 'Opt in to local or CI checks'
   help_row 'project skills --stack <stack>' 'List stack skill references'
   help_row 'project skills install [options]' 'Install selected project skills'
   help_row 'project backups' 'Find originals and recovery copies'
@@ -35,6 +39,7 @@ help() {
   help_section 'SHARED AGENT CONFIGURATION'
   help_row 'install [--mode=merge|replace]' 'Install shared rules and skills'
   help_row 'verify [--json]' 'Check agent configuration'
+  help_row 'repair [--apply]' 'Preview or repair owned shared links'
   help_row 'rollback [BACKUP]' 'Restore a global transaction'
   help_row 'uninstall [--apply]' 'Remove shared configuration'
   help_section 'CODE INTELLIGENCE'
@@ -48,7 +53,7 @@ help() {
   help_row 'benchmark REPOSITORY OUTPUT_DIR' 'Prepare isolated comparison runs'
   help_row 'help | -h | --help' 'Show this panel'
   help_section 'QUICK START'
-  printf '    %scontextrivet project init --stack nestjs --dry-run%s\n' "$HELP_GREEN" "$HELP_RESET"
+  printf '    %scontextrivet project init --dry-run%s\n' "$HELP_GREEN" "$HELP_RESET"
   printf '    %scontextrivet project init --stack nextjs --agents codex%s\n' "$HELP_GREEN" "$HELP_RESET"
   printf '    %scontextrivet project skills --stack flutter%s\n' "$HELP_GREEN" "$HELP_RESET"
   printf '    %scontextrivet project skills install --all --dry-run%s\n' "$HELP_GREEN" "$HELP_RESET"
@@ -64,12 +69,14 @@ shift || true
 if [ "$command" = cbm ] && { [ "${1:-}" = -h ] || [ "${1:-}" = --help ] || [ "${1:-}" = help ]; }; then
   exec bash "$ROOT/scripts/tools.sh" codebase-memory-mcp --help
 fi
-if [ "$command" != graphify ] && [ "$command" != project ] && [ "$command" != completion ] && { [ "${1:-}" = -h ] || [ "${1:-}" = --help ]; }; then help; exit 0; fi
+if [ "$command" != graphify ] && [ "$command" != project ] && [ "$command" != health ] && [ "$command" != repair ] && [ "$command" != completion ] && { [ "${1:-}" = -h ] || [ "${1:-}" = --help ]; }; then help; exit 0; fi
 case "$command" in
   help|-h|--help) help ;;
   completion) exec bash "$ROOT/scripts/completion.sh" "$@" ;;
   install) exec bash "$ROOT/scripts/install.sh" "$@" ;;
   verify) exec bash "$ROOT/scripts/verify.sh" "$@" ;;
+  repair) exec bash "$ROOT/scripts/repair.sh" "$@" ;;
+  health) exec python3 "$ROOT/scripts/maintenance.py" "$@" ;;
   rollback) exec bash "$ROOT/scripts/rollback.sh" "$@" ;;
   uninstall) exec bash "$ROOT/scripts/uninstall.sh" "$@" ;;
   benchmark) exec bash "$ROOT/scripts/benchmark.sh" "$@" ;;

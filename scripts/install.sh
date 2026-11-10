@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 . "$ROOT/scripts/lib/config.sh"
@@ -26,6 +26,7 @@ check_instruction_target "$HOME/AGENTS.md"
 check_skill_target "$HOME/.agents/skills/ponytail"
 check_skill_target "$HOME/.agents/instructions/code-intelligence.md"
 check_state_target
+check_link_registry
 if [ -d "$HOME/.codex" ]; then check_instruction_target "$HOME/.codex/AGENTS.md"; fi
 if [ -d "$HOME/.claude" ]; then check_instruction_target "$HOME/.claude/CLAUDE.md"; check_skill_target "$HOME/.claude/skills/ponytail"; fi
 if [ -d "$HOME/.gemini" ]; then check_instruction_target "$HOME/.gemini/GEMINI.md"; check_skill_target "$HOME/.gemini/skills/ponytail"; fi
@@ -37,6 +38,12 @@ if [ "$CLINE_PRESENT" -eq 1 ]; then
   check_skill_target "$HOME/.cline/data/settings/skills/ponytail"
 fi
 init_transaction "$MODE" "$DRY"
+recover_failure() {
+  if [ -f "$MANIFEST" ]; then bash "$ROOT/scripts/rollback.sh" "$BACKUP" >&2 || say 'Automatic rollback failed; retain the backup for manual recovery.' >&2; fi
+  say 'ERROR: Installation failed; no success is reported.' >&2
+  exit 1
+}
+trap recover_failure ERR
 
 install_instructions "$HOME/AGENTS.md" "$MODE"
 install_skill "$HOME/.agents/skills/ponytail" "$ROOT/skills/ponytail" "$MODE"

@@ -13,7 +13,7 @@ _contextrivet_context() {
     fi
     case "$word" in
       --project=*) project="${word#*=}" ;;
-      --project|--stack|--agents|--agent|--skills|--names|--canonical|--backup|--output|--bin-dir|--port|--budget) waiting="$word" ;;
+      --project|--stack|--agents|--agent|--skills|--names|--note|--canonical|--backup|--output|--bin-dir|--port|--budget) waiting="$word" ;;
       -*) ;;
       *)
         if [ -z "$command" ]; then command="$word"
@@ -36,7 +36,7 @@ _contextrivet_context() {
   case "$current" in --*=*) key="${current%%=*}"; prefix="$key="; current="${current#*=}" ;; esac
   _CR_CURRENT="$current" _CR_PREFIX="$prefix"
   case "$key" in
-    --stack) _CR_VALUES='nestjs nextjs flutter'; return ;;
+    --stack) _CR_VALUES='none nestjs nextjs flutter'; [ "$action" != init ] || _CR_VALUES="$_CR_VALUES auto"; return ;;
     --skills) _CR_VALUES='none ponytail'; return ;;
     --canonical) _CR_VALUES='AGENTS.md CLAUDE.md GEMINI.md .agents/AGENTS.md'; return ;;
     --agent) _CR_VALUES='codex opencode antigravity'; return ;;
@@ -52,6 +52,7 @@ _contextrivet_context() {
       ;;
     --mode) _CR_VALUES='merge replace'; return ;;
     --project|--output|--bin-dir) _CR_KIND=directories; return ;;
+    --note) _CR_KIND=files; return ;;
     --backup)
       for directory in "$project/.agents/contextrivet/backups" "$project/.agents/dev-agent-config/backups"; do
         [ -d "$directory" ] && [ ! -L "$directory" ] || continue
@@ -67,10 +68,13 @@ _contextrivet_context() {
     --names|--port|--budget) return ;;
   esac
   case "$command:$action:$sub" in
-    ::) _CR_VALUES='project install verify rollback uninstall benchmark tools cbm graphify cli completion help' ;;
-    project::) _CR_VALUES='init status skills backups restore uninstall' ;;
+    ::) _CR_VALUES='project install verify health repair rollback uninstall benchmark tools cbm graphify cli completion help' ;;
+    project::) _CR_VALUES='init status skills backups restore uninstall repair baseline automate' ;;
     project:init:*) _CR_VALUES='--project --canonical --agents --stack --skills --dry-run --yes' ;;
     project:status:*|project:backups:*) _CR_VALUES='--project' ;;
+    project:repair:*) _CR_VALUES='--project --apply --dry-run' ;;
+    project:baseline:*) _CR_VALUES='--project --note --yes --dry-run' ;;
+    project:automate:*) _CR_VALUES='--project --hook --ci --local --apply --dry-run' ;;
     project:skills:) _CR_VALUES='install --stack' ;;
     project:skills:install) _CR_VALUES='--project --stack --names --all --dry-run --yes' ;;
     project:restore:*) _CR_VALUES='--project --backup --dry-run --yes --force' ;;
@@ -80,6 +84,8 @@ _contextrivet_context() {
     completion::) _CR_VALUES='zsh bash' ;;
     install:*) _CR_VALUES='--mode=merge --mode=replace --dry-run' ;;
     verify:*) _CR_VALUES='--json' ;;
+    health:*) _CR_VALUES='--project --json --project-only --global-only' ;;
+    repair:*) _CR_VALUES='--apply --dry-run' ;;
     uninstall:*) _CR_VALUES='--apply' ;;
     rollback:*) _CR_VALUES='--dry-run'; _CR_KIND=files ;;
     benchmark:*) _CR_KIND=directories ;;

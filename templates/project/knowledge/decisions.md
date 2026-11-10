@@ -1,7 +1,8 @@
 # Accepted decisions
 
 No project decisions have been recorded yet. Add a decision only after it is
-established by inspected code or explicit user agreement. For each, record:
+established by an explicit decision record or authorized agreement. Inspected
+implementation alone is an observation, not proof of accepted intent. Record:
 
 - Date and status: observed, accepted, or superseded.
 - Context and the decision, including who/what established it.

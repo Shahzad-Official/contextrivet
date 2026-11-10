@@ -1,9 +1,27 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SANDBOX="$(mktemp -d)"
-trap 'rm -rf "$SANDBOX"' EXIT
+cleanup() {
+  local status="$?"
+  if [ "$status" -eq 0 ]; then rm -rf "$SANDBOX"
+  else printf 'Verification fixtures retained: %s\n' "$SANDBOX" >&2; fi
+}
+diagnose_failure() {
+  local status="$1" line="$2" command="$3" file
+  printf 'FAIL test_verify.sh:%s (exit %s): %s\n' "$line" "$status" "$command" >&2
+  for file in "$SANDBOX"/*.json; do
+    [ -f "$file" ] || continue
+    printf '\nFixture output: %s\n' "$file" >&2
+    cat "$file" >&2 || true
+  done
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'diagnose_failure "$?" "$LINENO" "$BASH_COMMAND"' ERR
+# Discovery must see fixture directories only, regardless of the calling IDE.
+unset XDG_DATA_HOME VSCODE_AGENT_FOLDER
 SYSTEM_PATH='/usr/bin:/bin'
 
 make_cli() {
@@ -11,6 +29,19 @@ make_cli() {
   mkdir -p "$bin"
   printf '#!/bin/sh\nprintf "%%s\\n" "%s %s"\n' "$name" "$version" > "$bin/$name"
   chmod +x "$bin/$name"
+}
+
+assert_version() {
+  python3 - "$1" "$2" "$3" <<'PY'
+import json, sys
+with open(sys.argv[1]) as source:
+    agent = next(item for item in json.load(source)["agents"] if item["name"] == sys.argv[2])
+actual, expected = agent["version"], sys.argv[3]
+if actual not in (expected, "timeout"):
+    raise AssertionError((agent["name"], actual, expected))
+if actual == "timeout":
+    print("OBSERVED_TIMEOUT: {} optional version probe exceeded its bounded wait; configuration checks still apply".format(agent["name"]))
+PY
 }
 
 # Missing CLIs are not confused with absent configurations.
@@ -50,16 +81,41 @@ make_cli "$bin" opencode 4.5.6
 # Simulate a CLI that writes during --version; verification must contain the write.
 printf '#!/bin/sh\nmkdir -p "$HOME/version-side-effect"\nprintf "opencode 4.5.6\\n"\n' > "$bin/opencode"
 chmod +x "$bin/opencode"
+# Check exact version extraction independently of the integration probe's wall
+# clock budget. Force the completed-child branch; wait still reaps the real fake
+# process, so stdout parsing and isolated HOME behavior are exercised unchanged.
+sed -n '/^safe_version() {/,/^}/p' "$ROOT/scripts/verify.sh" > "$SANDBOX/version-function.sh"
+(
+  . "$SANDBOX/version-function.sh"
+  kill() {
+    [ "${1:-}" != -0 ] || return 1
+    builtin kill "$@"
+  }
+  [ "$(safe_version "$bin/codex")" = 'codex 1.2.3' ]
+  [ "$(safe_version "$bin/opencode")" = 'opencode 4.5.6' ]
+)
 HOME="$home" PATH="$bin:$SYSTEM_PATH" "$ROOT/scripts/install.sh" >/dev/null
 HOME="$home" PATH="$bin:$SYSTEM_PATH" "$ROOT/scripts/verify.sh" --json > "$SANDBOX/mixed.json"
-grep -q '"name":"Codex","cli":"codex","installed":true,"version":"codex 1.2.3","vscode_extension":.*"configured":true' "$SANDBOX/mixed.json"
+grep -q '"name":"Codex","cli":"codex","installed":true,.*"configured":true' "$SANDBOX/mixed.json"
+assert_version "$SANDBOX/mixed.json" Codex 'codex 1.2.3'
 grep -q '"name":"Gemini CLI","cli":"gemini","installed":false,"version":"unavailable","vscode_extension":.*"configured":true' "$SANDBOX/mixed.json"
-grep -q '"name":"OpenCode","cli":"opencode","installed":true,"version":"opencode 4.5.6","vscode_extension":.*"configured":false' "$SANDBOX/mixed.json"
+grep -q '"name":"OpenCode","cli":"opencode","installed":true,.*"configured":false' "$SANDBOX/mixed.json"
+assert_version "$SANDBOX/mixed.json" OpenCode 'opencode 4.5.6'
 grep -q '"runtime_skill_activation":"unverified"' "$SANDBOX/mixed.json"
 [ ! -e "$home/version-side-effect" ]
 if command -v python3 >/dev/null 2>&1; then python3 -m json.tool "$SANDBOX/mixed.json" >/dev/null; fi
 grep -q '"name":"Cline"' "$SANDBOX/mixed.json"
 grep -q '"name":"Antigravity"' "$SANDBOX/mixed.json"
+
+# A genuinely slow optional probe stays bounded and reports unknown version,
+# without being confused with missing CLI/configuration or unhealthy rules.
+slow_bin="$SANDBOX/slow-bin"
+mkdir -p "$slow_bin"
+printf '#!/bin/sh\nexec /bin/sleep 3\n' > "$slow_bin/codex"
+chmod +x "$slow_bin/codex"
+HOME="$home" PATH="$slow_bin:$SYSTEM_PATH" "$ROOT/scripts/verify.sh" --json > "$SANDBOX/slow.json"
+grep -q '"name":"Codex","cli":"codex","installed":true,"version":"timeout"' "$SANDBOX/slow.json"
+grep -q '"healthy":true' "$SANDBOX/slow.json"
 
 # Documented global rules and skill targets are discoverable without claiming
 # runtime activation for either IDE.

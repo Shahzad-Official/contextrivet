@@ -10,7 +10,8 @@ Status: pending
 
 ## Stack
 Guidance profile: {{STACK}}
-[REQUIRED: Record actual languages, frameworks, versions from manifests, and runtime targets.]
+The guidance profile is separate from the project's observed technology stack.
+[REQUIRED: Record actual languages, frameworks, versions and runtime targets from available evidence; explicitly record absent or inapplicable evidence.]
 
 ## Constraints
 [REQUIRED: Record platform, data/privacy, compatibility, and delivery constraints; explicitly state none where appropriate.]

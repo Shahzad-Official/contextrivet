@@ -1,5 +1,18 @@
 # Task workflow and durable knowledge
 
+## Ownership and verification
+
+ContextRivet maintains scaffold mechanics and managed integration assets.
+Project maintainers and authorized agents maintain project-specific facts.
+Automated validation checks structure and flags possible source drift; human or
+agent review confirms semantic accuracy. Readiness does not prove factual truth,
+agent loading, skill activation, performance, or workload assumptions.
+
+For deterministic drift checks, put one project-root-relative source per line in
+the note using `Source: ` followed by a backticked path. Record its state explicitly
+with `contextrivet project baseline --note <note-path> --yes`. A baseline records
+bytes, not factual correctness. Checks never update it or rewrite prose.
+
 ## Before and during a task
 
 - Check the onboarding gate in the canonical instructions. Read project context

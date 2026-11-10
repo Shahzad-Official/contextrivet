@@ -12,6 +12,7 @@ if [ "$#" -gt 1 ] || { [ "$#" -eq 1 ] && [ "$1" != --apply ]; }; then fail 'Usag
 
 # Refuse unsafe paths before removing the first managed entry.
 check_state_target
+check_link_registry
 check_instruction_target "$HOME/AGENTS.md"
 check_skill_target "$HOME/.agents/skills/ponytail"
 check_skill_target "$HOME/.agents/instructions/code-intelligence.md"
@@ -58,7 +59,7 @@ remove_instructions() {
 remove_skill() {
   local target="$1" origin="$2"
   validate_target "$target"
-  if [ -L "$target" ] && [ "$(readlink "$target")" = "$origin" ]; then
+  if [ -L "$target" ] && { [ "$(readlink "$target")" = "$origin" ] || python3 "$ROOT/scripts/managed_links.py" owned "$target"; }; then
     say "$( [ "$DRY" -eq 1 ] && printf WOULD_UNLINK || printf UNLINKED ) skill: $target"
     if [ "$DRY" -eq 0 ]; then record_and_prepare "$target"; rm "$target"; fi
     CHANGES=$((CHANGES + 1))
@@ -68,7 +69,7 @@ remove_skill() {
 remove_instruction_link() {
   local target="$1" origin="$2" label="${3:-code-intelligence instructions}"
   validate_target "$target"
-  if [ -L "$target" ] && [ "$(readlink "$target")" = "$origin" ]; then
+  if [ -L "$target" ] && { [ "$(readlink "$target")" = "$origin" ] || python3 "$ROOT/scripts/managed_links.py" owned "$target"; }; then
     say "$( [ "$DRY" -eq 1 ] && printf WOULD_UNLINK || printf UNLINKED ) $label: $target"
     if [ "$DRY" -eq 0 ]; then record_and_prepare "$target"; rm "$target"; fi
     CHANGES=$((CHANGES + 1))
@@ -89,6 +90,12 @@ remove_skill "$HOME/.config/opencode/skills/ponytail" "$ROOT/skills/ponytail"
 if [ "$CLINE_PRESENT" -eq 1 ]; then
   remove_instruction_link "$HOME/.agents/AGENTS.md" "$HOME/AGENTS.md" 'Cline shared rules'
   remove_skill "$HOME/.cline/data/settings/skills/ponytail" "$ROOT/skills/ponytail"
+fi
+registry="$HOME/.agents/contextrivet/links.json"
+if [ -f "$registry" ]; then
+  say "$( [ "$DRY" -eq 1 ] && printf WOULD_REMOVE || printf REMOVED ) link ownership registry: $registry"
+  if [ "$DRY" -eq 0 ]; then record_and_prepare "$registry"; rm "$registry"; fi
+  CHANGES=$((CHANGES + 1))
 fi
 finish_transaction
 [ "$DRY" -eq 0 ] || say 'Dry run only. Pass --apply to uninstall.'

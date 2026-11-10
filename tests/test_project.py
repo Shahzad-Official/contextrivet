@@ -29,11 +29,7 @@ class ProjectSetupTests(unittest.TestCase):
         self.home = self.base / "home"
         self.home.mkdir()
 
-    def run_cli(self, *arguments, expected=0, cwd=None, infer_stack=False):
-        if not infer_stack and arguments and arguments[0] == "init" and "--stack" not in arguments:
-            target = Path(arguments[arguments.index("--project") + 1]) if "--project" in arguments else Path(cwd or self.project)
-            if not any((target / ".agents" / name / "project.json").exists() for name in ("contextrivet", "dev-agent-config")):
-                arguments += ("--stack", "nextjs")
+    def run_cli(self, *arguments, expected=0, cwd=None):
         result = subprocess.run(
             [str(CLI), "project", *arguments],
             cwd=str(cwd or self.project),
@@ -530,7 +526,7 @@ class ProjectSetupTests(unittest.TestCase):
                 project = self.base / stack
                 project.mkdir()
                 (project / manifest).write_text(content)
-                self.run_cli("init", "--project", str(project), infer_stack=True)
+                self.run_cli("init", "--project", str(project), "--stack", "auto")
                 config = json.loads((project / STATE).read_text())
                 self.assertEqual(config["stack"], stack)
                 self.assertEqual((project / manifest).read_text(), content)
@@ -538,13 +534,13 @@ class ProjectSetupTests(unittest.TestCase):
                                  (ROOT / "templates/project/stacks" / (stack + ".md")).read_bytes())
 
     def test_missing_ambiguous_or_unsupported_stacks_do_not_write(self):
-        self.run_cli("init", infer_stack=True, expected=1)
+        self.run_cli("init", "--stack", "auto", expected=1)
         self.assertEqual(list(self.project.iterdir()), [])
         package = self.project / "package.json"
         for dependencies in ({"react": "fixture"}, {"next": "fixture", "@nestjs/core": "fixture"}):
             package.write_text(json.dumps({"dependencies": dependencies}))
             before = self.snapshot()
-            self.run_cli("init", infer_stack=True, expected=1)
+            self.run_cli("init", "--stack", "auto", expected=1)
             self.assertEqual(self.snapshot(), before)
         for stack in ("generic", "backend", "react"):
             self.run_cli("init", "--stack", stack, expected=2)
@@ -568,7 +564,7 @@ class ProjectSetupTests(unittest.TestCase):
         helpers = runpy.run_path(str(ROOT / "scripts/project.py"))
         catalog_dir = self.base / "skills"
         catalog_dir.mkdir()
-        catalog = {"version": 1, "stacks": {"nestjs": [
+        catalog = {"version": 1, "stacks": {"none": [], "nestjs": [
             {"name": "nest-patterns", "description": "Fixture Nest conventions", "github_url": "https://github.com/example/skills/tree/fixture/nest-patterns"}
         ], "nextjs": [], "flutter": [
             {"name": "flutter-patterns", "description": "Fixture Flutter conventions", "github_url": "https://github.com/example/skills/tree/fixture/flutter-patterns"}
@@ -606,7 +602,7 @@ class ProjectSetupTests(unittest.TestCase):
         ]
         with patch.dict(helpers["stack_skills"].__globals__, {"ROOT": self.base}):
             for entries in cases:
-                (catalog_dir / "stacks.json").write_text(json.dumps({"version": 1, "stacks": {"nestjs": entries, "nextjs": [], "flutter": []}}))
+                (catalog_dir / "stacks.json").write_text(json.dumps({"version": 1, "stacks": {"none": [], "nestjs": entries, "nextjs": [], "flutter": []}}))
                 with self.assertRaises(ValueError):
                     helpers["stack_skills"]("nestjs")
 

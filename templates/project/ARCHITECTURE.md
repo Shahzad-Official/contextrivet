@@ -15,7 +15,7 @@ Status: pending
 [REQUIRED: Trace a representative request or user action through state, business rules, persistence, and external integrations; include trust boundaries.]
 
 ## Decisions and tradeoffs
-[REQUIRED: Record current architectural decisions and rationale; link durable decisions from .agents/knowledge/decisions.md.]
+[REQUIRED: Separate observed implementation from explicitly accepted decisions; record unknown intent or rationale rather than inventing it, and link durable decisions from .agents/knowledge/decisions.md.]
 
 ## Evidence and review
 [REQUIRED: Cite inspected source/manifests or user decisions, and record the review date. Distinguish observed architecture from proposed changes.]

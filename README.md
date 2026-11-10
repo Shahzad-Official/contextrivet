@@ -53,7 +53,9 @@ contextrivet project skills install --names flutter-architecture,flutter-async-s
 contextrivet project skills install --names flutter-architecture,flutter-async-state-safety
 ```
 
-Choose your supported agent and stack; `--agents` is optional. Project commands
+For framework-independent guidance, use `contextrivet project init` (equivalent
+to `--stack none`). Choose a framework profile explicitly when wanted;
+`--agents` is optional. Project commands
 require Python 3. Existing agent setup requires consent. Complete the generated
 project/architecture context with your agent, then run `contextrivet project status`.
 Project setup is separate from installing global shared instructions.
@@ -64,6 +66,9 @@ skill places its files in the project; verify discovery in your selected agent
 and ask it to use the relevant skill for a focused task.
 
 ## Upgrade compatibility
+
+Existing users can follow [adopt checks in an existing project](#adopt-checks-in-an-existing-project)
+for exact commands, including the safe handling of unowned older automation.
 
 The project and CLI are now named `contextrivet`. From this checkout, install the
 new command link after reviewing its preview:
@@ -100,9 +105,11 @@ Optional tools use `contextrivet` paths/ownership for fresh installs. When only
 an existing old-name installation is present, they retain its original paths,
 ownership markers, indexes, and service names. Virtual environments, binary
 links, and registered service definitions are not relocated automatically.
-Do not rename this checkout directory while links or service definitions refer
-to its current location. The on-disk checkout folder does not need to match the
-CLI name.
+Shared assets still link to the source checkout. After a move, preview
+`contextrivet repair --dry-run` from the new checkout, then use `--apply` for
+proven owned links. Optional service definitions require their own documented
+reinstallation; repair does not relocate them. The checkout folder need not
+match the CLI name.
 
 ## Install
 
@@ -115,6 +122,9 @@ Always preview first:
 
 `merge` is the default. It replaces only this project's marked instruction block,
 preserves all other instructions, and preserves a conflicting same-name skill.
+Known owned links to obsolete checkouts can be repaired in merge mode. Unknown
+broken links and custom files/directories are preserved. Shared installation and
+repair require Python 3 for ownership records.
 
 To replace agent instruction files and the Ponytail skill:
 
@@ -224,11 +234,12 @@ contextrivet project skills install --<Tab>
 contextrivet project init --agents codex,cl<Tab>
 ```
 
-After `--stack`, Tab offers `nestjs`, `nextjs`, and `flutter`; `fl` completes to
-`flutter`.
+After `project init --stack`, Tab offers `none`, `nestjs`, `nextjs`, `flutter`,
+and opt-in `auto`; `fl` completes to `flutter`. Skill catalogs omit `auto`.
 
 For example, type `contextrivet project ` with a trailing space and press **Tab**
-to see `init`, `status`, `skills`, `backups`, `restore`, and `uninstall`. Press
+to see `init`, `status`, `skills`, `backups`, `restore`, `uninstall`, `repair`,
+`baseline`, and `automate`. Press
 **Enter** to execute a command: `contextrivet --help` followed by Enter displays
 the help panel; Tab requests suggestions instead.
 
@@ -393,13 +404,23 @@ The scaffold contains:
   contextrivet/backups/             saved originals and recovery transactions
 ```
 
-New projects support exactly three stack profiles: `nestjs`, `nextjs`, and
-`flutter`. Use `--stack` explicitly, or let init identify a single supported stack
-from root `package.json` dependencies (`@nestjs/core` or `next`) or Flutter's SDK
-entry in `pubspec.yaml`. Missing or ambiguous manifests require an explicit choice
-before any project files are written. No project code is executed for detection.
-It selects guidance, not app code, packages, or an architectural rewrite. Existing
-projects retain their saved settings. Older generic/backend/react profiles remain
+Fresh projects default to the canonical persisted profile `none`, also selectable
+with `--stack none`. This is complete framework-independent guidance, not a claim
+that the project has no technology stack. Omitting `--stack` never reads manifests
+to choose a profile. Empty, unsupported, mixed-stack, documentation-only, non-Git,
+and spaced-path projects are supported. Ponytail remains selected by default;
+`--skills none` disables that initial selection. The neutral remote catalog is
+valid and empty.
+
+Explicit `--stack nestjs`, `nextjs`, and `flutter` retain their profiles.
+`--stack auto` is an opt-in convenience: it identifies one supported stack from
+root `package.json` dependencies (`@nestjs/core` or `next`) or Flutter's SDK entry
+in `pubspec.yaml`. Missing, unsupported, malformed, or ambiguous evidence fails
+before writes; choose `none` or a specific profile instead. No project code runs.
+Existing projects retain their saved profile when `--stack` is omitted, even if
+manifests change. An incompatible explicit profile/canonical change fails before
+writes, including `--stack auto` if it would change the saved profile.
+Older generic/backend/react profiles remain
 readable through compatibility templates for status, restore, and removal; they
 are not offered for new initialization.
 
@@ -615,6 +636,312 @@ Neither `--yes` nor `--force` guesses that ownership. Use the listed originals
 for exact restoration and review any remaining documents manually.
 
 Dry runs never create backups or mutate files, even with `--yes` or `--force`.
+
+### Health, repair, and maintenance
+
+```bash
+contextrivet health                           # separate global/project findings
+contextrivet health --json                    # schema_version: 1
+contextrivet health --project-only --json     # portable, no personal HOME needed
+contextrivet health --global-only             # developer setup only
+contextrivet repair --dry-run                 # owned shared links, default preview
+contextrivet repair --apply
+contextrivet project repair --dry-run         # missing owned scaffold assets
+contextrivet project repair --apply
+```
+
+`health` reuses project readiness checks and adds instruction/index references,
+ownership drift, optional integration metadata, and source fingerprints. It reads
+files only: no installs, scripts, CLI version probes, services, network requests,
+index refreshes, or baseline writes. The older `verify` remains available for its
+agent/extension discovery probes; `project status` retains its readiness output.
+Project-only checks also work with `HOME` unset; global checks require it.
+
+JSON contains `schema_version`, `overall` (`pass`, `warn`, `fail`), `scopes`
+(`global` and `project`, each with `result`, or `skipped`), and `findings`. Each
+finding has stable `id`, `scope`, `state`, `path`, and `message` fields. Finding
+states are `failure`, `warning`, `optional`, and `unknown`. Exit codes: **0** means
+no structural failures, including warnings; **1** means a failed check, invalid
+state, or unavailable required file; **2** means invalid CLI arguments. Optional
+unconfigured integrations and unknown runtime state do not fail the result.
+Readiness markers and required sections can fail independently of source drift.
+
+Diagnostic families in schema 1:
+
+| IDs | Meaning |
+| --- | --- |
+| `global.invalid`, `project.invalid` | Unreadable/unsafe configuration or paths |
+| `instructions.missing`, `.unmanaged`, `.drift` | Shared instruction configuration |
+| `asset.broken_link`, `.missing`, `.obsolete`, `.unmanaged`, `.incomplete` | Shared assets |
+| `agent.unconfigured` | Optional unused agent |
+| `project.route`, `.readiness`, `.asset` | Scaffold, routes, sections, markers |
+| `reference.missing`, `.unsafe` | Defined instruction/index references |
+| `ownership.modified`, `.missing` | Owned file differs or is missing |
+| `automation.disabled` | Optional generated integration file was explicitly removed |
+| `automation.local` | Developer-local hook is unverified in portable project-only checks |
+| `knowledge.stale`, `.source_missing`, `.note_missing`, `.reference_removed`, `.unbaselined` | Evidence drift or unknown baseline |
+| `intelligence.runtime`, `.configured`, `.index`, `activation.unverified` | Observable configuration or unverified runtime/semantic state |
+
+An owned file differing from installed bytes is a warning because project
+customization is normal. It is not automatically replaced. Reference checks read
+canonical `.agents/` backtick routes, index bullets of the form
+``- `project/root/path.md` — purpose``, and local Markdown links in instruction
+files/indexes (relative to the containing document). Fenced examples, generic
+inline code, placeholders, URLs, and anchor-only links are not mandatory paths.
+These are defined formats, not a parser for arbitrary prose or every Markdown
+extension. Unsafe references are refused. Agent loading, actual skill activation,
+index freshness, and factual accuracy remain unverified without direct evidence.
+
+Shared repair uses `~/.agents/contextrivet/links.json`, recording the exact origin
+at installation. It can migrate an owned link to this checkout or restore a
+missing recorded link when the source is available. Custom replacements are
+preserved. Legacy ownership is deliberately narrow: exact current-checkout links
+plus a global managed block, or an original creation manifest plus a recognizable
+old checkout (matching canonical instructions and Ponytail provenance), again
+with a global managed block. A fully vanished old checkout without origin records
+cannot be proven owned; repair explains the ambiguity and leaves it untouched.
+Keep its backup, inspect the path, and use deliberate replace installation only
+if that replacement is intended. A familiar filename or broken link is never
+sufficient evidence.
+
+Project repair restores only missing owned assets whose exact installed digest
+matches locally available scaffold bytes. It preserves custom context, knowledge,
+and architecture. Missing customized files or remote skills whose installed bytes
+are unavailable are reported as ambiguous; recover a reviewed copy from history.
+Project symlinks are refused because project scaffolds were never managed links.
+Repair plans validate paths before writes, create recovery backups, and repeat
+without unnecessary writes. Ordinary write errors trigger rollback; interruption
+or rollback failure can still require manual recovery from the printed backup.
+Use `contextrivet rollback` for global repair, or `project restore --backup ID`
+for project repair. Uninstall removes current owned links and link records while
+retaining recovery backups; restoring its transaction restores those records too.
+Global rollback validates every target and backup object, including the saved
+ownership registry, before writing. It saves a complete pre-rollback recovery
+transaction and restores that state if an ordinary restore write fails. Persistent
+storage errors or interruption can still require manual recovery; neither repair
+nor rollback is an atomic filesystem transaction.
+
+**Remaining storage limitation:** shared links still depend on an absolute source
+checkout location and expose edits made there. Stable versioned copies would
+require coordinated installation, update, uninstall, provenance, and rollback
+migration. This upgrade provides targeted repair rather than claiming that
+migration is complete. Project scaffolds and the optional CI checker are copied
+locally and do not depend on the source checkout. Existing provenance files and
+optional-tool version storage remain intact.
+
+To deliberately change a saved profile, list backups, archive customized context
+and knowledge, preview and approve `project uninstall`, and initialize with the
+new explicit profile. Review retained customized documents manually: uninstall
+preserves them and init does not rewrite them. Older profile/state namespaces
+remain readable and recoverable; omitted `--stack` never silently migrates them.
+
+### Potentially stale knowledge
+
+Add explicit source citations to a real note (project-root-relative files):
+
+```markdown
+# Authentication observations
+Source: `src/auth/session.py`
+Source: `tests/test_session.py`
+```
+
+```bash
+contextrivet project baseline --note .agents/knowledge/features/auth.md --dry-run
+contextrivet project baseline --note .agents/knowledge/features/auth.md --yes
+contextrivet health --project-only --json
+```
+
+Notes may be `.agents/PROJECT.md`, `.agents/ARCHITECTURE.md`, or Markdown files
+under `.agents/knowledge/`. Sources must be existing regular files without
+symlinked ancestors. The explicit baseline records raw SHA-256 byte fingerprints
+in `.agents/contextrivet/evidence.json` (or the saved legacy namespace), with
+ownership and recovery history. It records source state, **not semantic review**.
+Health reports the note and changed/missing source deterministically without
+rewriting prose or refreshing baselines. Any byte change is potentially stale;
+it does not necessarily invalidate the note's claims. No semantic contradiction
+detector is attempted. Review observations, assumptions, accepted intent, and
+tradeoffs separately before deliberately updating the baseline.
+
+### Adopt checks in an existing project
+
+Use the updated checkout's executable directly; an old CLI link or copied CI
+validator will not acquire new behavior merely because another checkout changed.
+Set these two paths, then preview the additive update:
+
+```bash
+CR=/absolute/path/to/updated/contextrivet/contextrivet
+PROJECT=/absolute/path/to/existing/project
+
+"$CR" project init --project "$PROJECT" --dry-run
+"$CR" project init --project "$PROJECT" --yes
+"$CR" project status --project "$PROJECT"
+"$CR" health --project "$PROJECT" --project-only --json
+```
+
+Omit `--stack`: this retains the saved profile, including supported legacy
+profiles. Do not pass `--stack none` to migrate an existing project. Initialization
+preserves customized instructions, completed onboarding documents, and feature
+notes; it does not replace old prose with current templates. A health warning
+about modified owned files can therefore be intentional. Pending onboarding still
+requires completing its documented fields; adopting checks does not certify facts.
+The commands above never change personal global configuration. To inspect that
+separately, run `"$CR" health --global-only --json`.
+
+If health reports missing owned scaffold assets, use a separate reviewed repair:
+
+```bash
+"$CR" project repair --project "$PROJECT" --dry-run
+"$CR" project repair --project "$PROJECT" --apply
+```
+
+Repair will not rewrite customized files, fabricate unavailable installed bytes,
+or enable removed optional automation. For a note containing explicit source
+citations, opt into fingerprints separately (substitute a real note path):
+
+```bash
+"$CR" project baseline --project "$PROJECT" \
+  --note .agents/knowledge/features/auth.md --dry-run
+"$CR" project baseline --project "$PROJECT" \
+  --note .agents/knowledge/features/auth.md --yes
+```
+
+This records source bytes, not factual review. Read-only health checks never
+refresh the fingerprints. To enable checks when the target hook/workflow does
+not already exist:
+
+```bash
+"$CR" project automate --project "$PROJECT" --hook --ci --dry-run
+"$CR" project automate --project "$PROJECT" --hook --ci --apply
+```
+
+Choose `--hook` or `--ci` alone when only one integration is wanted. Add `--local`
+to the hook setup only if it should also validate that developer's global setup;
+portable CI always uses project-only checks. Review and commit the generated
+workflow, checker directory, and updated ownership metadata. The Git hook is local
+to each checkout and must be enabled once on each developer machine.
+
+**Existing or unowned automation:** inspect the saved namespace's `installed.json`
+before migration. Use `MANAGER=dev-agent-config` below for projects already using
+that namespace; otherwise use `contextrivet`. Files absent from ownership records
+are not adopted by name or matching content. An `UNCHANGED` result for identical
+legacy automation does not make it owned, and uninstall will leave it in place.
+
+```bash
+MANAGER=contextrivet
+python3 -m json.tool "$PROJECT/.agents/$MANAGER/installed.json"
+git -C "$PROJECT" config --get core.hooksPath
+```
+
+The Git command returns 1 when the setting is absent. If it is configured, keep
+it and integrate the check manually; do not move or overwrite its hooks. For a
+custom hook you want to retain, add the following command at the appropriate
+point **before** an existing `exec` or successful exit, preserving existing checks
+and failure handling (use your actual absolute CLI path):
+
+```sh
+/absolute/path/to/updated/contextrivet/contextrivet health --project-only
+```
+
+For a deliberate replacement of **unowned** legacy automation at the standard
+paths, archive it first. Inspect and preserve custom CI/hook logic before using
+this sequence. Use a new durable archive directory outside the project, not a
+temporary directory. Do not move an entire checker directory if it mixes owned
+and unowned files; review those files individually instead.
+
+```bash
+ARCHIVE=/absolute/path/outside/project/contextrivet-legacy-automation
+mkdir "$ARCHIVE"
+if [ -e "$PROJECT/.git/hooks/pre-commit" ] || [ -L "$PROJECT/.git/hooks/pre-commit" ]; then
+  mv "$PROJECT/.git/hooks/pre-commit" "$ARCHIVE/pre-commit"
+fi
+if [ -e "$PROJECT/.github/workflows/contextrivet.yml" ] || [ -L "$PROJECT/.github/workflows/contextrivet.yml" ]; then
+  mv "$PROJECT/.github/workflows/contextrivet.yml" "$ARCHIVE/contextrivet.yml"
+fi
+if [ -e "$PROJECT/.agents/$MANAGER/checker" ] || [ -L "$PROJECT/.agents/$MANAGER/checker" ]; then
+  mv "$PROJECT/.agents/$MANAGER/checker" "$ARCHIVE/checker"
+fi
+"$CR" project automate --project "$PROJECT" --hook --ci --dry-run
+"$CR" project automate --project "$PROJECT" --hook --ci --apply
+"$CR" project backups --project "$PROJECT"
+```
+
+The new files receive ownership records and an `automate` transaction. Reapply
+any reviewed team checks from the archive; customized generated integrations are
+preserved by normal uninstall. Repeating setup is read-only when the generated
+files match. It refuses to overwrite differing files rather than merging them.
+For recovery, choose the printed automation transaction ID:
+
+```bash
+"$CR" project restore --project "$PROJECT" --backup AUTOMATION_ID --dry-run
+"$CR" project restore --project "$PROJECT" --backup AUTOMATION_ID --yes
+```
+
+This reverses generated files and ownership changes, subject to later-edit
+checks. It does **not** restore the manually archived unowned integration; keep
+the archive and restore its reviewed files yourself. `project uninstall --dry-run`
+previews removal of all unchanged owned setup, including new automation, while
+preserving customized documents, knowledge, and unowned automation. Recovery
+transactions remain available after uninstall.
+
+Shared global asset storage is a separate follow-up. These adoption commands do
+not migrate it: shared assets and local hook CLI paths remain checkout-dependent,
+as described in the [storage limitation](#health-repair-and-maintenance).
+
+### Opt-in automatic checks
+
+```bash
+contextrivet project automate --hook --dry-run
+contextrivet project automate --hook --apply             # project-only pre-commit
+contextrivet project automate --hook --local --apply     # include local global setup
+contextrivet project automate --ci --dry-run
+contextrivet project automate --ci --apply
+```
+
+Select the local scope before installation: existing hooks are never overwritten,
+including a generated hook with a different scope. Integrate a printed health
+command manually when a hook already exists. A configured `core.hooksPath` is
+reported and left untouched; linked-worktree hooks outside the project also
+require manual integration. No Git configuration is changed. Hooks check the
+working tree, not a separate staged snapshot. The hook references this checkout's
+CLI; after moving it, review and update that hook explicitly.
+Portable `health --project-only` skips developer-local hook ownership checks;
+the combined local `health` command includes them. This allows CI and distributed
+worktrees to use project metadata without the original developer's `.git/hooks`.
+
+CI generation creates `.github/workflows/contextrivet.yml` and a local snapshot
+of validator source/templates and license under `.agents/<saved-namespace>/checker/`.
+Review and commit both. The workflow runs Python standard-library project-only checks on Linux,
+without a personal global installation or downloading ContextRivet. It uses the
+normal checkout action and does not launch project code or services. Existing
+workflows/checker files are never overwritten. To upgrade a snapshot, remove
+the generated workflow/checker after reviewing local edits, then regenerate them.
+
+Bypass the local hook with `CONTEXTRIVET_SKIP_CHECKS=1 git commit ...` or
+`git commit --no-verify`. Disable/remove it by deleting the generated
+`.git/hooks/pre-commit`. Disable CI by removing its generated workflow; remove
+the generated checker directory when no longer used. Health reports removed
+optional integration files as `automation.disabled`, not a scaffold failure;
+regenerate explicitly to enable them again. Setup is one-time opt-in, never a
+startup or per-commit installation.
+
+Newly created automation files are tracked in project ownership and an `automate`
+recovery transaction. `project restore --backup ID --dry-run` previews reversing
+that setup; later changes require the usual conflict review. `project uninstall`
+removes unchanged owned hooks, workflows, and checker files, while retaining
+customized or preexisting integrations. Its recovery transaction can restore them.
+Existing integrations that exactly match generated bytes are left unclaimed.
+Failed creation cleans up new files and restores ownership metadata. Empty
+directories can remain. Automation generated by the earlier untracked version
+remains unowned: inspect/remove those files manually before regenerating if you
+want transaction tracking; matching filenames alone never establish ownership.
+
+Automation defaults to **checks only**. No automatic repair, startup replacement,
+daemon, hidden background process, or index refresh is configured. Projects may
+explicitly opt into the narrow owned mechanical fixes by adding
+`contextrivet repair --apply` or `contextrivet project repair --apply` to a reviewed
+local integration; each still records recovery backups. Keep global repair out
+of portable CI. Semantic accuracy, architecture intent, business purpose, accepted
+decisions, and actual agent behavior require maintainer or authorized-agent review.
 Applying a removal/restore prompts `[y/N]` in a terminal and requires `--yes` in
 noninteractive use. Unchanged operations do not prompt. To verify manually in a
 disposable project, initialize over an existing rule, edit a generated document,
@@ -626,6 +953,7 @@ Focused verification for this command:
 
 ```bash
 python3 tests/test_project.py
+python3 tests/test_maintenance.py
 bash tests/test_cli.sh
 python3 tests/test_rename.py
 ```

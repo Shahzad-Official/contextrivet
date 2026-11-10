@@ -1,5 +1,8 @@
 # NestJS guidance
 
+Preserve existing architecture first; the conventions below guide compatible new
+work and do not authorize restructuring or establish past architectural intent.
+
 - Group feature behavior into Nest modules. Keep controllers focused on transport
   mapping and boundary validation; put application behavior in cohesive providers.
 - Declare imports, providers, and exports deliberately. Export only the contracts

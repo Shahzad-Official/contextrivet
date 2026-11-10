@@ -8,6 +8,7 @@ CHANGES=0
 BACKUP=''
 MANIFEST=''
 DRY=0
+REGISTRY_SAVED=0
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -23,6 +24,7 @@ path_type() {
 validate_target() {
   local target="$1" parent current rest part
   case "$target" in "$HOME"/*) ;; *) fail "Target is outside HOME: $target" ;; esac
+  case "$target" in */../*|*/..|*/./*|*/.) fail "Unexpected traversal in target: $target" ;; esac
   parent="$(dirname "$target")"
   current="$HOME"
   rest="${parent#"$HOME"/}"
@@ -41,6 +43,8 @@ init_transaction() {
   DRY="$2"
   BACKUP="$HOME/.agents/contextrivet/backups/$(date +%Y%m%d-%H%M%S)-$$"
   MANIFEST="$BACKUP/manifest.tsv"
+  validate_target "$MANIFEST"
+  [ ! -e "$BACKUP" ] && [ ! -L "$BACKUP" ] || fail "Backup already exists: $BACKUP"
   say "Mode: $1"
   [ "$DRY" -eq 0 ] || say 'Dry run: no files will change'
 }
@@ -109,6 +113,25 @@ check_state_target() {
   [ "$type" = missing ] || [ "$type" = file ] || fail "Unsupported state target: $target ($type)"
 }
 
+check_link_registry() {
+  command -v python3 >/dev/null 2>&1 || fail 'Shared link ownership requires Python 3'
+  python3 "$ROOT/scripts/managed_links.py" validate || fail 'Unsafe link ownership registry'
+}
+
+record_link() {
+  [ "$REGISTRY_SAVED" -eq 1 ] || record_and_prepare "$HOME/.agents/contextrivet/links.json"
+  REGISTRY_SAVED=1
+  python3 "$ROOT/scripts/managed_links.py" record "$1" "$2"
+}
+
+adopt_link() {
+  if ! python3 "$ROOT/scripts/managed_links.py" tracked "$1" && python3 "$ROOT/scripts/managed_links.py" owned "$1"; then
+    say "$( [ "$DRY" -eq 1 ] && printf WOULD_RECORD || printf RECORDED ) legacy link ownership: $1"
+    if [ "$DRY" -eq 0 ]; then record_link "$1" "$2"; fi
+    CHANGES=$((CHANGES + 1))
+  fi
+}
+
 install_instructions() {
   local target="$1" mode="$2" type tmp write_tmp
   check_instruction_target "$target"
@@ -137,10 +160,11 @@ install_skill() {
   check_skill_target "$destination"
   type="$(path_type "$destination")"
   if [ "$type" = symlink ] && [ "$(readlink "$destination")" = "$origin" ]; then
+    adopt_link "$destination" "$origin"
     say "UNCHANGED skill: $destination"
     return
   fi
-  if [ "$type" != missing ] && [ "$mode" = merge ]; then
+  if [ "$type" != missing ] && [ "$mode" = merge ] && ! python3 "$ROOT/scripts/managed_links.py" owned "$destination"; then
     say "PRESERVED existing skill: $destination"
     return
   fi
@@ -149,6 +173,7 @@ install_skill() {
     record_and_prepare "$destination"
     if [ "$type" != missing ]; then rm -rf "$destination"; fi
     ln -s "$origin" "$destination"
+    record_link "$destination" "$origin"
   fi
   CHANGES=$((CHANGES + 1))
 }
@@ -158,10 +183,11 @@ install_instruction_link() {
   check_skill_target "$destination"
   type="$(path_type "$destination")"
   if [ "$type" = symlink ] && [ "$(readlink "$destination")" = "$origin" ]; then
+    adopt_link "$destination" "$origin"
     say "UNCHANGED $label: $destination"
     return
   fi
-  if [ "$type" != missing ] && [ "$mode" = merge ]; then
+  if [ "$type" != missing ] && [ "$mode" = merge ] && ! python3 "$ROOT/scripts/managed_links.py" owned "$destination"; then
     say "PRESERVED existing instruction link path: $destination"
     return
   fi
@@ -170,6 +196,7 @@ install_instruction_link() {
     record_and_prepare "$destination"
     if [ "$type" != missing ]; then rm -rf "$destination"; fi
     ln -s "$origin" "$destination"
+    record_link "$destination" "$origin"
   fi
   CHANGES=$((CHANGES + 1))
 }

@@ -49,6 +49,7 @@ bash tests/test_cli.sh
 python3 tests/test_help.py
 python3 tests/test_completion.py
 python3 tests/test_project.py
+python3 tests/test_maintenance.py
 python3 tests/test_skill_install.py
 python3 tests/test_rename.py
 ```
@@ -57,6 +58,20 @@ The README's [development section](README.md#development-and-tests) lists the
 broader test suites. Optional tool/service tests use fixtures; report separately
 any real platform or integration behavior you verified. Passing fixture tests
 alone does not prove a live service or agent integration works.
+
+`test_verify.sh` clears inherited `XDG_DATA_HOME` and `VSCODE_AGENT_FOLDER` so
+editor extension discovery is limited to its fixtures. On failure it reports the
+command/line, dumps fixture JSON, and retains the temporary directory for review.
+Its optional CLI version probes have a bounded wait: a reported `timeout` is
+explicitly logged, rather than mistaken for unhealthy instruction configuration.
+Exact version extraction is tested separately with the completed-child branch;
+a deliberately slow fake CLI also checks timeout reporting. This does not prove
+that real optional probes never time out under load.
+
+The historical upgrade fixture and its provenance are described in
+[tests/fixtures/README.md](tests/fixtures/README.md). The maintenance suite covers
+preserving an already customized project and deliberately migrating unowned
+automation, rather than testing upgrades only from freshly generated files.
 
 ## Contribute skills and presets
 

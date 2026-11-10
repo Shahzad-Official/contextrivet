@@ -10,6 +10,7 @@ import re
 import shlex
 import stat
 import sys
+sys.dont_write_bytecode = True
 import tempfile
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
@@ -35,7 +36,7 @@ ENTRIES = {
     "cline": ".clinerules/00-contextrivet.md",
     "antigravity": "GEMINI.md",
 }
-STACKS = ("nestjs", "nextjs", "flutter")
+STACKS = ("none", "nestjs", "nextjs", "flutter")
 LEGACY_STACKS = ("generic", "backend", "react")
 SECTIONS = {
     ".agents/PROJECT.md": (
@@ -158,7 +159,7 @@ def stack_skills(stack):
     if not isinstance(catalog, dict) or catalog.get("version") != 1 or not isinstance(catalog.get("stacks"), dict):
         raise ValueError("Invalid skills/stacks.json catalog")
     if set(catalog["stacks"]) != set(STACKS):
-        raise ValueError("Skill catalog must define nestjs, nextjs, and flutter")
+        raise ValueError("Skill catalog must define none, nestjs, nextjs, and flutter")
     for entries in catalog["stacks"].values():
         if not isinstance(entries, list):
             raise ValueError("Each stack skill list must be an array")
@@ -453,7 +454,21 @@ def allowed_paths():
     compatible = {".agents/{}/{}".format(name, filename) for name in ("contextrivet", "dev-agent-config")
                   for filename in ("project.json", "installed.json")}
     compatible.update(".clinerules/00-" + name + ".md" for name in ("contextrivet", "dev-agent-config"))
+    compatible.update(".agents/" + name + "/evidence.json" for name in ("contextrivet", "dev-agent-config"))
+    compatible.update(automation_paths())
     return set(scaffold({"stack": "nextjs", "skills": True}, include_references=False)) | set(CANONICALS) | set(ENTRIES.values()) | compatible
+
+
+def checker_sources():
+    return ["scripts/project.py", "scripts/maintenance.py", "scripts/managed_links.py", "LICENSE",
+            "skills/stacks.json", "skills/ponytail/SKILL.md", "skills/ponytail/SOURCE.md", "instructions/code-intelligence.md"] + [
+                source.relative_to(ROOT).as_posix() for source in sorted(TEMPLATES.rglob("*.md"))]
+
+
+def automation_paths():
+    return {".git/hooks/pre-commit", ".github/workflows/contextrivet.yml"} | {
+        ".agents/" + name + "/checker/" + source
+        for name in ("contextrivet", "dev-agent-config") for source in checker_sources()}
 
 
 def validate_records(records, allowed):
@@ -563,11 +578,13 @@ def initialize(project, args):
     previous = load_config(project)
     owned = load_ownership(project)
     canonical = args.canonical or (previous["canonical"] if previous else "AGENTS.md")
-    stack = args.stack or (previous["stack"] if previous else detect_stack(project))
+    stack = detect_stack(project) if args.stack == "auto" else args.stack or (previous["stack"] if previous else "none")
     if previous and (canonical != previous["canonical"] or stack != previous["stack"]):
         raise ValueError(
             "This project is already initialized. Canonical/stack migration is manual; "
-            "init will not replace customized rules or architecture."
+            "init will not replace customized rules or architecture. Run project backups, "
+            "review project uninstall --dry-run, archive customized context, and deliberately "
+            "uninstall/reinitialize with the new profile."
         )
     agents = [] if args.agents in (None, "none") else [agent.strip() for agent in args.agents.split(",")]
     if any(agent not in ENTRIES for agent in agents):
@@ -651,7 +668,7 @@ def load_backup(project, identifier):
         raise ValueError("Backup not found: " + identifier)
     if manifest.exists():
         data = json.loads(manifest.read_text(encoding="utf-8"))
-        if not isinstance(data, dict) or data.get("version") != 1 or data.get("action") not in ("init", "restore", "uninstall", "skills-install"):
+        if not isinstance(data, dict) or data.get("version") != 1 or data.get("action") not in ("init", "restore", "uninstall", "skills-install", "repair", "baseline", "automate"):
             raise ValueError("Invalid project backup manifest: " + identifier)
         validate_records(data.get("files"), allowed_paths())
         return data
@@ -801,7 +818,7 @@ def uninstall(project, args):
     return apply_removal_plan(project, args, changes)
 
 
-def status(project):
+def readiness_issues(project):
     config = load_config(project)
     if config is None:
         raise ValueError("Project not initialized; run contextrivet project init --dry-run first")
@@ -837,6 +854,11 @@ def status(project):
             match = re.search(r"^## " + re.escape(section) + r"\n(.*?)(?=^## |\Z)", content, re.MULTILINE | re.DOTALL)
             if match is None or not match.group(1).strip():
                 issues.append("missing or empty section '{}': {}".format(section, relative))
+    return config, issues
+
+
+def status(project):
+    config, issues = readiness_issues(project)
     print("Project: {}\nCanonical: {}\nAgents: {}".format(
         project, config["canonical"], ", ".join(config["agents"]) or "canonical only"
     ))
@@ -857,12 +879,30 @@ def main():
     init.add_argument("--project", default=".", help="existing project directory (default: current directory)")
     init.add_argument("--canonical", choices=CANONICALS, help="canonical rules file (default: AGENTS.md)")
     init.add_argument("--agents", help="comma-separated: " + ",".join(ENTRIES) + "; default: none; adds entries without removing existing ones")
-    init.add_argument("--stack", choices=STACKS, help="NestJS, Next.js, or Flutter; inferred from root manifests when unambiguous")
+    init.add_argument("--stack", choices=STACKS + ("auto",), help="guidance profile; default: none for fresh projects, saved profile otherwise; auto explicitly inspects manifests")
     init.add_argument("--skills", choices=("none", "ponytail"), help="initial skill selection (default: ponytail); existing skills are preserved")
     init.add_argument("--dry-run", action="store_true", help="preview without creating or modifying files")
     init.add_argument("--yes", action="store_true", help="explicitly consent to the additive plan when agent files already exist")
     check = subparsers.add_parser("status", help="check scaffold and required docs; exit 1 while pending")
     check.add_argument("--project", default=".", help="existing project directory (default: current directory)")
+    repair = subparsers.add_parser("repair", help="restore missing owned scaffold assets; default: dry run")
+    repair.add_argument("--project", default=".")
+    mode = repair.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true", help="apply the displayed owned mechanical repairs with a recovery backup")
+    mode.add_argument("--dry-run", action="store_true")
+    baseline = subparsers.add_parser("baseline", help="explicitly record cited source bytes; does not certify factual accuracy")
+    baseline.add_argument("--project", default=".")
+    baseline.add_argument("--note", required=True, help="PROJECT.md, ARCHITECTURE.md, or a knowledge note under .agents")
+    baseline.add_argument("--dry-run", action="store_true")
+    baseline.add_argument("--yes", action="store_true")
+    automation = subparsers.add_parser("automate", help="opt in once to local/CI checks; track new files for restore and uninstall")
+    automation.add_argument("--project", default=".")
+    automation.add_argument("--hook", action="store_true")
+    automation.add_argument("--ci", action="store_true")
+    automation.add_argument("--local", action="store_true", help="also check developer global configuration in the local hook")
+    mode = automation.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true")
+    mode.add_argument("--dry-run", action="store_true")
     backups = subparsers.add_parser("backups", help="list saved originals and recovery backups")
     backups.add_argument("--project", default=".", help="existing project directory (default: current directory)")
     skills = subparsers.add_parser(
@@ -914,6 +954,10 @@ def main():
             return install_skills(project, args)
         if args.action == "status":
             return status(project)
+        if args.action in ("repair", "baseline", "automate"):
+            import maintenance
+            maintenance.p.select_namespace(project, args.action)
+            return getattr(maintenance, args.action)(project, args)
         if args.action == "backups":
             return list_backups(project)
         return restore(project, args) if args.action == "restore" else uninstall(project, args)
